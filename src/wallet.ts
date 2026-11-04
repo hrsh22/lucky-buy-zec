@@ -13,6 +13,7 @@ export class MockWallet implements Wallet {
   tip = 1000;
   private n = 0;
   private prefix: string;
+  private salt = Math.random().toString(36); // a restart against a kept database mustn't reuse addresses
 
   constructor(opts: { network?: ZcashNetwork; reserveZat?: number; tillZat?: number } = {}) {
     this.prefix = opts.network === "mainnet" ? "u1mock" : "utest1mock";
@@ -20,7 +21,7 @@ export class MockWallet implements Wallet {
   }
 
   async newAddress() {
-    return `${this.prefix}${hex(`addr${this.n++}`).slice(0, 40)}`;
+    return `${this.prefix}${hex(`${this.salt}addr${this.n++}`).slice(0, 40)}`;
   }
 
   async received() {

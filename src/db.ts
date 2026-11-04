@@ -107,6 +107,12 @@ export function openDb(path = ":memory:") {
       return sum;
     },
 
+    /** The latest drawn purchases, newest first, for the "recent spins" feed. */
+    recentDraws(n = 8): Purchase[] {
+      return db.prepare("SELECT data FROM purchases WHERE json_extract(data, '$.finalBps') IS NOT NULL ORDER BY updated_at DESC LIMIT ?")
+        .all(n).map((r) => row(r)!);
+    },
+
     events: (id: string) => db.prepare("SELECT * FROM events WHERE purchase_id = ? ORDER BY seq").all(id),
 
     close: () => db.close(),

@@ -4,79 +4,88 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lucky Buy</title>
+  <meta name="description" content="Gift cards for shielded Zcash. You always get the card; spin the wheel to see what you pay.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <div id="testnet" class="testnet" hidden>TESTNET · play money (TAZ) · test vouchers</div>
+  <div id="testnet" class="testnet" hidden>Testnet: play money in TAZ and test gift cards</div>
 
-  <header class="masthead">
-    <h1>Lucky Buy</h1>
-    <p class="lede">Gift cards for shielded Zcash. You always get the Voucher. Choose a Lucky Buy and a provably fair Draw sets your Final Price, anywhere from free to the Maximum Price you paid up front.</p>
+  <header class="marquee">
+    <div class="sign">
+      <span class="bulbs" aria-hidden="true"></span>
+      <h1>Lucky Buy</h1>
+    </div>
+    <p class="lede">Gift cards for shielded Zcash. You always get the card. Spin the wheel and you might pay half, or nothing at all.</p>
   </header>
 
-  <main>
+  <main class="cabinet">
     <section id="pick" class="step">
-      <h2><span class="n">1</span> Choose a Voucher</h2>
-      <div id="catalog" class="catalog" role="radiogroup" aria-label="Voucher"><p class="muted">Loading Vouchers…</p></div>
+      <h2>Pick a gift card</h2>
+      <div id="catalog" class="catalog" role="radiogroup" aria-label="Gift card"><p class="muted">Loading gift cards…</p></div>
 
-      <div class="mode" role="radiogroup" aria-label="Purchase type">
-        <label><input type="radio" name="mode" value="buy"><span>Buy</span></label>
-        <label><input type="radio" name="mode" value="lucky" checked><span>Lucky Buy</span></label>
+      <div class="mode" role="radiogroup" aria-label="How to pay">
+        <label><input type="radio" name="mode" value="lucky" checked><span>Spin for a discount</span></label>
+        <label><input type="radio" name="mode" value="buy"><span>Pay full price</span></label>
       </div>
 
-      <div id="tiers" class="tiers" role="radiogroup" aria-label="Lucky Buy tier"></div>
+      <div id="tiers" class="machines" role="radiogroup" aria-label="Wheel"></div>
       <div id="detail" class="detail"></div>
 
       <label class="field">
-        <span>Your shielded return address</span>
+        <span>Your shielded Zcash address</span>
         <input id="addr" autocomplete="off" spellcheck="false" placeholder="utest1…">
-        <small>Your Refund and Voucher code are sent here in an encrypted memo. No account, no email.</small>
+        <small>Your Refund and gift card code arrive here in an encrypted memo. No account, no email.</small>
       </label>
 
-      <button id="quoteBtn" class="primary">Get quote</button>
+      <button id="quoteBtn" class="cta">Get my payment ticket</button>
       <p id="quoteErr" class="error" role="alert"></p>
     </section>
 
     <section id="pay" class="step" hidden>
-      <h2><span class="n">2</span> Pay with shielded ZEC</h2>
-      <div class="paybox">
-        <a id="qr" class="qr" aria-label="Open in wallet"></a>
-        <div class="paymeta">
-          <p class="amount"><span id="amount"></span></p>
-          <p class="muted" id="amountNote"></p>
-          <p class="countdown">Quote valid for <strong id="countdown">15:00</strong></p>
-          <p><a id="uri" class="mono uri"></a></p>
-          <button id="copyUri" class="ghost">Copy payment link</button>
-          <button id="devPay" class="ghost">Simulate payment (dev)</button>
+      <h2>Pay to spin</h2>
+      <div class="ticket">
+        <a id="qr" class="qr" aria-label="Open in your Zcash wallet"></a>
+        <div class="ticket-body">
+          <p class="price" id="amount"></p>
+          <p class="note" id="amountNote"></p>
+          <p class="countdown">Ticket valid for <strong id="countdown">15:00</strong></p>
+          <div class="ticket-actions">
+            <button id="copyUri" class="ghost">Copy payment link</button>
+            <button id="devPay" class="ghost">Simulate payment (dev)</button>
+          </div>
+          <p><a id="uri" class="uri"></a></p>
           <p id="payErr" class="error" role="alert"></p>
         </div>
       </div>
-      <div class="commit">
-        <p><strong>Seed committed before you pay.</strong> The Draw uses a secret seed whose SHA-256 is fixed in this signed quote. It is revealed after the Draw so you can check it.</p>
-        <p class="mono" id="commit"></p>
-      </div>
+      <details class="commit">
+        <summary>The wheel is locked before you pay</summary>
+        <p>This ticket is signed and carries the SHA-256 of a secret seed. After your payment confirms, the seed and your transaction id decide where the wheel stops, and the seed is revealed so you can check the result yourself.</p>
+        <p class="hash" id="commit"></p>
+      </details>
     </section>
 
     <section id="result" class="step" hidden>
-      <h2><span class="n">3</span> Draw and delivery</h2>
-      <ol id="steps" class="steps"></ol>
-      <div id="reveal" class="reveal" hidden>
-        <div id="revealBar" class="revealbar"></div>
-        <p id="verdict" class="verdict"></p>
-        <p id="verdictNote" class="muted"></p>
+      <h2>The spin</h2>
+      <ol id="steps" class="lights"></ol>
+      <div class="stage">
+        <div id="wheel" class="wheel-wrap"></div>
+        <div id="reveal" class="verdict-box" hidden>
+          <p id="verdict" class="verdict"></p>
+          <p id="verdictNote" class="note"></p>
+        </div>
       </div>
-      <p id="statusNote" class="muted"></p>
-      <p class="actions"><a id="verifyLink" class="primary link" hidden>Verify this Draw</a> <a href="./" class="ghost link">New purchase</a></p>
+      <p id="statusNote" class="note status"></p>
+      <p class="actions"><a id="verifyLink" class="cta small" hidden>Check the spin was fair</a> <a href="./" class="ghost">New ticket</a></p>
     </section>
 
-    <aside class="feed">
-      <h3>Recent Lucky Buys</h3>
-      <ul id="feed"><li class="muted">Waiting for the next Draw…</li></ul>
+    <aside class="ticker" aria-label="Recent spins">
+      <h3>Recent spins</h3>
+      <ul id="feed"><li class="muted">Waiting for the next spin…</li></ul>
     </aside>
   </main>
 </body>

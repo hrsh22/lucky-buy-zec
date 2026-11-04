@@ -196,6 +196,9 @@ export function makeApp(d: AppDeps) {
   app.get("/api/feed", (ctx) =>
     streamSSE(ctx, async (stream) => {
       const send = (e: FeedEvent) => void stream.writeSSE({ event: "purchase", data: JSON.stringify(e) });
+      // replay the latest spins (oldest first) so a new visitor sees some history
+      for (const p of db.recentDraws(8).reverse())
+        send({ at: p.updatedAt, productName: p.quote.productName, tier: p.quote.tier, finalBps: p.finalBps!, maxBps: p.quote.maxBps });
       feed.on("purchase", send);
       stream.onAbort(() => void feed.off("purchase", send));
       while (!stream.aborted) await stream.sleep(25_000).then(() => stream.writeSSE({ event: "ping", data: "" }));

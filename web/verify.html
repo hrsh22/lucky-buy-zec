@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Verify a Draw</title>
+  <title>Check the spin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <style>
     .checks { list-style: none; padding: 0; margin: 0 0 1.5rem; display: grid; gap: .6rem; }
@@ -17,17 +17,17 @@
     .checks .verdictword { float: right; font-weight: 700; }
     .pass .verdictword { color: var(--green); }
     .fail .verdictword { color: var(--red); }
-    .summary { font-size: 1.4rem; font-weight: 700; margin: 0 0 1rem; }
+    .summary { font: 400 1.3rem/1.3 var(--display); color: var(--gold-hot); margin: 0 0 1rem; }
     dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: 0 0 1.5rem; }
     dt { color: var(--muted); }
     dd { margin: 0; overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
-  <div id="testnet" class="testnet" hidden>TESTNET · play money (TAZ) · test vouchers</div>
+  <div id="testnet" class="testnet" hidden>Testnet: play money in TAZ and test gift cards</div>
   <header class="masthead">
-    <h1>Verify</h1>
-    <p class="lede">Your browser recomputes the Draw from the revealed seed, the signed quote and your payment transaction. Nothing here trusts the server's own answer.</p>
+    <h1>Check the spin</h1>
+    <p class="lede">Your browser recomputes where the wheel stopped from the revealed seed, your signed ticket and your payment transaction. Nothing here trusts the server's own answer.</p>
   </header>
   <main>
     <section class="step">
@@ -36,7 +36,7 @@
       <dl id="facts"></dl>
       <h3 id="serverHead" hidden>The server's own checks, for comparison</h3>
       <ul id="serverChecks" class="checks"></ul>
-      <p class="actions"><a class="ghost link" href="./">New purchase</a></p>
+      <p class="actions"><a class="ghost link" href="./">New ticket</a></p>
     </section>
   </main>
   <script type="module">
