@@ -67,6 +67,12 @@ Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-
 
 These are Bitrefill test products; see the note below.
 
+**Agent-initiated purchase (MCP `lucky_buy`), on real testnet:**
+- **Payment:** Claude's agent paid 0.011 TAZ from its own shielded wallet, broadcast over the Nym mixnet: txid [`3e57d821…`](https://testnet.zcashexplorer.app/transactions/3e57d821e572d7a4000b0186e4c0fd6c39d1ab21532c7ec441b87d39619ad8f9).
+- **Purchase:** the server drew and bought through Bitrefill (invoice `53924980-dae9-44d6-b098-2d634b8dc7b2`).
+- **Outcome:** Bitrefill rejected the invoice because of the account's daily cap, so the agent wallet got its full payment back ([`41344adb…`](https://testnet.zcashexplorer.app/transactions/41344adb49f9315a8c0710da304c62fba4f58e122b6d9d847ad1565fea807dcc)).
+- **Guardrail:** in the same session, a 0.0375 TAZ Moonshot over the 0.03 cap was refused and an approval link was returned.
+
 **Guardrails:**
 - **Per purchase:** at most 0.03 TAZ (`AGENT_MAX_ZEC_PER_PURCHASE`).
 - **Per 24 h:** at most 0.1 TAZ (`AGENT_MAX_ZEC_PER_DAY`), kept in a persistent ledger.

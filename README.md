@@ -174,6 +174,8 @@ Explorer links for every transaction are in [SUBMISSION.md](SUBMISSION.md).
 | Standard: delivered | pay `04c74db0…`, deliver `5d8330bb…` | `c40f094b-05c3-4118-b465-8150b18ee505` |
 | Underpaid: full refund | pay `bdbe8903…`, refund `d5cbb729…` | — |
 | Bitrefill failed: full refund | pay `e445ef0f…`, refund `87264ebc…` | `e4825477-e205-4832-a538-b7219e058215` |
+| **Agent (`lucky_buy`)**: paid from the agent's own wallet **over the Nym mixnet**; Bitrefill hit its daily cap, so a full refund went back to the agent wallet | pay `3e57d821…` (`over_mixnet: true`), refund `41344adb…` | `53924980-dae9-44d6-b098-2d634b8dc7b2` |
+| **Agent guardrail:** a $30 Moonshot (0.0375 TAZ) over the 0.03 cap was refused, and an approval link was returned | nothing paid | — |
 
 ## Next 30 days
 
