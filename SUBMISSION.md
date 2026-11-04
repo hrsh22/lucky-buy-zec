@@ -3,7 +3,7 @@
 Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-society-hack-2026). Enter **both tracks**.
 
 - **Repo:** https://github.com/hrsh22/lucky-buy-zec
-- **Public URL:** see the current tunnel link in the Stadium form. It runs on testnet, so judges can quote, pay from any NU7 testnet wallet and verify.
+- **Public URL:** https://luckybuy.hrsh.dev (Zcash testnet). Judges can quote, pay from any NU7 testnet wallet, and verify. The reserve and admission limits are at https://luckybuy.hrsh.dev/api/reserve.
 - **Demo video:** 3 minutes max (script below).
 
 ## One-line pitch

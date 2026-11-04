@@ -2,6 +2,8 @@
 
 > **Buy a gift card with shielded ZEC: you always get the card, you might pay half, and the code arrives in an encrypted memo only your wallet can read. No account, no email. An AI agent can do the whole thing for you from its own capped wallet.**
 
+**Try it: https://luckybuy.hrsh.dev** (Zcash testnet: pay with TAZ from any NU7 testnet wallet).
+
 Built at the Free Society Hackathon, Mumbai, 4 Nov 2026, for both tracks:
 
 - **Privacy (Zcash), theme 1 "private payment rails":**
@@ -161,7 +163,7 @@ Bitrefill doesn't accept ZEC, so the house pays Bitrefill from its balance and t
 - **Server:** Node.js 24 running TypeScript directly, Hono, `node:sqlite`, zod, and Ed25519 / SHA-256 from `node:crypto`.
 - **Web:** plain HTML, CSS and JS; WebCrypto (Ed25519, SHA-256) for in-browser verification; qrcode-generator.
 - **Tests:** vitest, plus a Python reference model (`reference/`).
-- **Hosting:** a cloudflared quick tunnel.
+- **Hosting:** a named Cloudflare Tunnel (`cloudflared tunnel run --url http://localhost:8787 luckybuy`) serving luckybuy.hrsh.dev. Rate limits key on `CF-Connecting-IP`.
 
 ## Evidence (real testnet)
 
