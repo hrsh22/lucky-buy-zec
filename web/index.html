@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lucky Buy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="testnet" class="testnet" hidden>TESTNET · play money (TAZ) · test vouchers</div>
+
+  <header class="masthead">
+    <h1>Lucky Buy</h1>
+    <p class="lede">Gift cards for shielded Zcash. You always get the Voucher. Choose a Lucky Buy and a provably fair Draw sets your Final Price, anywhere from free to the Maximum Price you paid up front.</p>
+  </header>
+
+  <main>
+    <section id="pick" class="step">
+      <h2><span class="n">1</span> Choose a Voucher</h2>
+      <div id="catalog" class="catalog" role="radiogroup" aria-label="Voucher"><p class="muted">Loading Vouchers…</p></div>
+
+      <div class="mode" role="radiogroup" aria-label="Purchase type">
+        <label><input type="radio" name="mode" value="buy"><span>Buy</span></label>
+        <label><input type="radio" name="mode" value="lucky" checked><span>Lucky Buy</span></label>
+      </div>
+
+      <div id="tiers" class="tiers" role="radiogroup" aria-label="Lucky Buy tier"></div>
+      <div id="detail" class="detail"></div>
+
+      <label class="field">
+        <span>Your shielded return address</span>
+        <input id="addr" autocomplete="off" spellcheck="false" placeholder="utest1…">
+        <small>Your Refund and Voucher code are sent here in an encrypted memo. No account, no email.</small>
+      </label>
+
+      <button id="quoteBtn" class="primary">Get quote</button>
+      <p id="quoteErr" class="error" role="alert"></p>
+    </section>
+
+    <section id="pay" class="step" hidden>
+      <h2><span class="n">2</span> Pay with shielded ZEC</h2>
+      <div class="paybox">
+        <a id="qr" class="qr" aria-label="Open in wallet"></a>
+        <div class="paymeta">
+          <p class="amount"><span id="amount"></span></p>
+          <p class="muted" id="amountNote"></p>
+          <p class="countdown">Quote valid for <strong id="countdown">15:00</strong></p>
+          <p><a id="uri" class="mono uri"></a></p>
+          <button id="copyUri" class="ghost">Copy payment link</button>
+          <button id="devPay" class="ghost">Simulate payment (dev)</button>
+          <p id="payErr" class="error" role="alert"></p>
+        </div>
+      </div>
+      <div class="commit">
+        <p><strong>Seed committed before you pay.</strong> The Draw uses a secret seed whose SHA-256 is fixed in this signed quote. It is revealed after the Draw so you can check it.</p>
+        <p class="mono" id="commit"></p>
+      </div>
+    </section>
+
+    <section id="result" class="step" hidden>
+      <h2><span class="n">3</span> Draw and delivery</h2>
+      <ol id="steps" class="steps"></ol>
+      <div id="reveal" class="reveal" hidden>
+        <div id="revealBar" class="revealbar"></div>
+        <p id="verdict" class="verdict"></p>
+        <p id="verdictNote" class="muted"></p>
+      </div>
+      <p id="statusNote" class="muted"></p>
+      <p class="actions"><a id="verifyLink" class="primary link" hidden>Verify this Draw</a> <a href="./" class="ghost link">New purchase</a></p>
+    </section>
+
+    <aside class="feed">
+      <h3>Recent Lucky Buys</h3>
+      <ul id="feed"><li class="muted">Waiting for the next Draw…</li></ul>
+    </aside>
+  </main>
+</body>
+</html>

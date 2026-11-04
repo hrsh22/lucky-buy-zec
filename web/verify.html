@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verify a Draw</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .checks { list-style: none; padding: 0; margin: 0 0 1.5rem; display: grid; gap: .6rem; }
+    .checks li { background: var(--surface); border-left: 5px solid var(--line); border-radius: 0 8px 8px 0; padding: .7rem .9rem; }
+    .checks li.pass { border-color: var(--green); }
+    .checks li.fail { border-color: var(--red); }
+    .checks strong { display: block; }
+    .checks .verdictword { float: right; font-weight: 700; }
+    .pass .verdictword { color: var(--green); }
+    .fail .verdictword { color: var(--red); }
+    .summary { font-size: 1.4rem; font-weight: 700; margin: 0 0 1rem; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: 0 0 1.5rem; }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <div id="testnet" class="testnet" hidden>TESTNET · play money (TAZ) · test vouchers</div>
+  <header class="masthead">
+    <h1>Verify</h1>
+    <p class="lede">Your browser recomputes the Draw from the revealed seed, the signed quote and your payment transaction. Nothing here trusts the server's own answer.</p>
+  </header>
+  <main>
+    <section class="step">
+      <p id="summary" class="summary">Checking…</p>
+      <ul id="checks" class="checks"></ul>
+      <dl id="facts"></dl>
+      <h3 id="serverHead" hidden>The server's own checks, for comparison</h3>
+      <ul id="serverChecks" class="checks"></ul>
+      <p class="actions"><a class="ghost link" href="./">New purchase</a></p>
+    </section>
+  </main>
+  <script type="module">
+    import { BPS, LUCKY_TIERS, TIERS, bytesToHex, canonicalJson, formatZec, hexToBytes, outcomeForRoll, pct, roll, sha256, unitFor, verifySignature } from "./fair.js";
+
+    const $ = (s) => document.querySelector(s);
+    const params = new URLSearchParams(location.search);
+    const results = [];
+
+    function check(list, title, ok, detail) {
+      results.push(ok);
+      const li = Object.assign(document.createElement("li"), { className: ok ? "pass" : "fail" });
+      li.innerHTML = `<span class="verdictword"></span><strong></strong><span class="mono"></span>`;
+      li.children[0].textContent = ok ? "Pass" : "Fail";
+      li.children[1].textContent = title;
+      li.children[2].textContent = detail;
+      list.append(li);
+    }
+    const attempt = async (fn) => { try { return await fn(); } catch (e) { return e; } };
+    const sameTable = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+    async function verifyPurchase(id) {
+      const r = await fetch(`/api/verify/${encodeURIComponent(id)}`);
+      const v = await r.json();
+      if (!r.ok) {
+        $("#summary").textContent = v.error === "not_drawn_yet" ? `This purchase hasn't been drawn yet (status ${v.status}). Come back after payment.` : `Couldn't load this purchase: ${v.error ?? r.status}.`;
+        return;
+      }
+      const q = v.quote;
+      $("#testnet").hidden = q.network !== "testnet";
+      const list = $("#checks");
+
+      // The server could re-sign a different quote after the fact; the copy saved at purchase time can't change.
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(`lb:quote:${q.id}`) ?? "null"); } catch {}
+      if (saved) {
+        const same = canonicalJson(saved.quote) === canonicalJson(q) && saved.signature === v.signature && saved.publicKey === v.publicKey;
+        check(list, "Quote matches the signed copy your browser saved when you bought", same, same ? `commit ${saved.quote.commit}` : `saved commit ${saved.quote.commit}, server now shows ${q.commit}`);
+      }
+
+      const commit = bytesToHex(await sha256(hexToBytes(v.serverSeed)));
+      check(list, "Seed matches the commitment in the quote", commit === q.commit, `SHA-256(seed) = ${commit}`);
+
+      const sig = await attempt(() => verifySignature(q, v.signature, v.publicKey));
+      check(list, "Quote signature is valid (Ed25519)", sig === true, sig instanceof Error ? `Your browser couldn't check Ed25519: ${sig.message}` : `public key ${v.publicKey}`);
+
+      check(list, "Odds table is the published one for this tier", sameTable(q.table, TIERS[q.tier]?.outcomes) && q.maxBps === TIERS[q.tier]?.maxBps, `${TIERS[q.tier]?.name ?? q.tier}, ${q.table.length} outcomes`);
+
+      const myRoll = q.tier === "standard" ? 0 : await attempt(() => roll(v.serverSeed, q.id, v.paymentTxid));
+      check(list, "Roll recomputed from seed, quote id and payment txid", myRoll === v.roll, myRoll instanceof Error ? myRoll.message : q.tier === "standard" ? "Standard purchase: no Draw, roll is always 0" : `roll ${myRoll}, server says ${v.roll}`);
+
+      const outcome = Number.isInteger(myRoll) ? outcomeForRoll(q.table, myRoll) : null;
+      check(list, "Final Price is the bucket the roll lands in", outcome?.finalBps === v.finalBps, `${outcome ? pct(outcome.finalBps) : "?"} of the Reference Price, server says ${pct(v.finalBps)}`);
+
+      const u = unitFor(q.network);
+      const facts = [
+        ["Voucher", q.productName], ["Tier", TIERS[q.tier]?.name ?? q.tier], ["Paid up front", `${formatZec(q.maxPriceZat)} ${u}`],
+        ["Final Price", pct(v.finalBps)], ["Quote id", q.id], ["Payment txid", v.paymentTxid], ["Revealed seed", v.serverSeed],
+      ];
+      $("#facts").replaceChildren(...facts.flatMap(([k, val]) => [Object.assign(document.createElement("dt"), { textContent: k }), Object.assign(document.createElement("dd"), { textContent: val, className: /id|seed/.test(k) ? "mono" : "" })]));
+
+      const mine = results.every(Boolean);
+      $("#serverHead").hidden = false;
+      const names = { commitMatches: "Commitment", signatureValid: "Signature", rollMatches: "Roll", outcomeMatches: "Outcome" };
+      for (const [k, ok] of Object.entries(v.checks)) check($("#serverChecks"), names[k] ?? k, ok, "");
+      const caveat = saved ? "" : " (This browser has no saved copy of the quote, so these checks use the server's copy. Verify from the browser you bought with for the strongest check.)";
+      $("#summary").textContent = (mine ? `All checks pass. This Draw was fair: you paid ${pct(v.finalBps)} of the Reference Price.` : "At least one check failed. Keep this page and the quote; they prove what you're owed.") + caveat;
+    }
+
+    async function selftest() {
+      $("#summary").textContent = "Self-test: running test/vectors.json through this page's code…";
+      const vec = await (await fetch("vectors.json")).json();
+      const list = $("#checks");
+      for (const id of LUCKY_TIERS)
+        check(list, `Table ${id} matches the reference`, sameTable(TIERS[id].outcomes.map((o) => [o.finalBps, o.probBps]), vec.tables[id]), "");
+      for (const d of vec.draws) {
+        const c = bytesToHex(await sha256(hexToBytes(d.serverSeed)));
+        const r = await attempt(() => roll(d.serverSeed, d.quoteId, d.paymentTxid));
+        const finals = Number.isInteger(r) ? Object.fromEntries(LUCKY_TIERS.map((id) => [id, outcomeForRoll(TIERS[id].outcomes, r).finalBps])) : {};
+        const ok = c === d.commit && r === d.roll && LUCKY_TIERS.every((id) => finals[id] === d.finalBps[id]);
+        check(list, `Vector ${d.quoteId}`, ok, `roll ${r} (want ${d.roll}), ${LUCKY_TIERS.map((id) => `${id} ${finals[id]}/${d.finalBps[id]}`).join(", ")}`);
+      }
+      const n = results.filter(Boolean).length;
+      $("#summary").textContent = `Self-test: ${n} of ${results.length} pass${n === results.length ? "." : ". FAILED."}`;
+      document.title = n === results.length ? "selftest pass" : "selftest FAIL";
+    }
+
+    const id = params.get("id");
+    (params.has("selftest") ? selftest() : id ? verifyPurchase(id) : Promise.resolve($("#summary").textContent = "Open this page from a purchase, or add ?id=<quote id>."))
+      .catch((e) => ($("#summary").textContent = `Verification stopped: ${e.message}`));
+  </script>
+</body>
+</html>

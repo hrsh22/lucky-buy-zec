@@ -1,0 +1,9 @@
+# deps and local state
+node_modules/
+.env
+*.sqlite
+*.sqlite-*
+# wallet folders hold spending keys
+wallets/
+__pycache__/
+.DS_Store

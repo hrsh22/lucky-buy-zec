@@ -1,0 +1,30 @@
+{
+  "name": "lucky-buy-zec",
+  "version": "1.0.0",
+  "description": "Gift cards for shielded Zcash: a guaranteed Voucher, a provably fair Refund, and the code in an encrypted memo. With an MCP agent that pays from its own capped wallet.",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.ts",
+    "mcp": "node --env-file-if-exists=.env src/mcp.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "vectors": "python3 reference/gen_vectors.py > test/vectors.json && cp test/vectors.json web/vectors.json",
+    "e2e": "node --env-file=.env scripts/e2e-testnet.ts",
+    "smoke:wallet": "node --env-file=.env scripts/wallet-smoke.ts",
+    "smoke:bitrefill": "node scripts/bitrefill-smoke.ts",
+    "tunnel": "cloudflared tunnel --url http://localhost:8787"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.6",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "hono": "^4.13.16",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

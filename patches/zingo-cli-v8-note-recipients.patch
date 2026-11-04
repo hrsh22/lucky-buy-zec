@@ -1,0 +1,39 @@
+diff --git a/zingo-cli/src/commands.rs b/zingo-cli/src/commands.rs
+index 6cdf4e1..66fd0bc 100644
+--- a/zingo-cli/src/commands.rs
++++ b/zingo-cli/src/commands.rs
+@@ -548,9 +548,34 @@ async fn notes(
+     scope: Option<OutputScope>,
+     lightclient: &mut LightClient,
+ ) -> Result<String, CommandError> {
++    use pepper_sync::wallet::{NoteInterface, OutputInterface};
+     let all_notes = scope.is_some();
++    let chain = lightclient.chain_type();
+     let wallet = lightclient.wallet().read().await;
++    // Lucky Buy patch: the address each orchard note was received on, as an orchard-only UA
++    // (matches `new_address o` output), so payments can be matched to diversified addresses.
++    macro_rules! recipients {
++        ($ty:ty, $pool:expr) => {
++            wallet
++                .wallet_outputs::<$ty>()
++                .into_iter()
++                .map(|n| {
++                    let ua = zcash_keys::address::UnifiedAddress::from_receivers(Some(n.note().recipient()), None, None, None, None);
++                    json::object! {
++                        "pool" => $pool,
++                        "txid" => n.output_id().txid().to_string(),
++                        "output_index" => n.output_id().output_index(),
++                        "recipient" => ua.map(|ua| ua.encode(&chain)),
++                    }
++                })
++                .collect::<Vec<json::JsonValue>>()
++        };
++    }
++    let mut orchard_recipients = recipients!(OrchardNote, "orchard");
++    orchard_recipients.extend(recipients!(IronwoodNote, "ironwood"));
+     Ok(json::object! {
++        "orchard_recipients" => orchard_recipients,
++        "height" => wallet.sync_state.last_known_chain_height().map_or(0, u32::from),
+         "ironwood_notes" => json::JsonValue::from(wallet.note_summaries::<IronwoodNote>(all_notes)),
+         "orchard_notes" => json::JsonValue::from(wallet.note_summaries::<OrchardNote>(all_notes)),
+         "sapling_notes" => json::JsonValue::from(wallet.note_summaries::<SaplingNote>(all_notes)),
