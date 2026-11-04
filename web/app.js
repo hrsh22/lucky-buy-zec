@@ -144,13 +144,26 @@ async function noirPay(q) {
   const btn = $("#noirPay");
   btn.disabled = true;
   $("#payErr").textContent = "";
+  const send = () => noirCall("zcash_sendTransaction", [{ to: q.payAddress, amount: formatZec(q.maxPriceZat), memo: `Lucky Buy ${q.id}`, fundingSource: "shielded" }]);
   try {
-    const txid = await noirCall("zcash_sendTransaction", [{ to: q.payAddress, amount: formatZec(q.maxPriceZat), memo: `Lucky Buy ${q.id}`, fundingSource: "shielded" }]);
+    let txid;
+    try {
+      // Connect first if this site isn't authorised (fresh page, or the extension restarted).
+      if (!(await noirCall("zcash_getAccounts").catch(() => null))) await noirCall("zcash_requestAccounts");
+      txid = await send();
+    } catch (e) {
+      // Noir drops the site's connection when the wallet switches account: reconnect, then retry once.
+      if (!/reconnect|requestAccounts|not connected|no longer matches|unauthori[sz]ed/i.test(String(e?.message ?? e))) throw e;
+      btn.textContent = "Reconnecting Noir…";
+      await noirCall("zcash_requestAccounts");
+      txid = await send();
+    }
     btn.textContent = "Paid with Noir";
     $("#statusNote").textContent = `Payment sent (${String(txid).slice(0, 10)}…). The wheel spins once it's in a block.`;
   } catch (e) {
     btn.disabled = false;
-    $("#payErr").textContent = `Noir Wallet didn't send: ${e.message ?? e}. You can also pay with the QR code or link.`;
+    btn.textContent = "Pay with Noir Wallet";
+    $("#payErr").textContent = `Noir Wallet didn't send: ${e.message ?? e}. Unlock Noir and try again, or pay with the QR code or link.`;
   }
 }
 
