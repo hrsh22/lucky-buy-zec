@@ -108,7 +108,10 @@ export function makeApp(d: AppDeps) {
     const q = (ctx.req.query("q") ?? "").trim().slice(0, 60);
     const country = (ctx.req.query("country") ?? "IN").toUpperCase().slice(0, 2);
     if (!q || !bitrefill.search) return ctx.json([]);
-    return ctx.json(await bitrefill.search(q, country).catch(() => []));
+    const found = await bitrefill.search(q, country).catch(() => []);
+    // Only offer what can actually be delivered: real cards need credit on a Bitrefill account.
+    const hasCredit = (await bitrefill.balanceUsdCents().catch(() => 0)) > 0;
+    return ctx.json(hasCredit ? found : found.filter((p) => p.isTest));
   });
 
   // ponytail: in-memory sliding window per IP; resets on restart, fine for one process.

@@ -177,7 +177,10 @@ async function search(e) {
   const found = q
     ? await fetch(`/api/search?${new URLSearchParams({ q, country: "IN" })}`).then((r) => (r.ok ? r.json() : [])).catch(() => [])
     : await fetch("/api/products").then((r) => (r.ok ? r.json() : [])).catch(() => []);
-  if (!found.length) return box.replaceChildren(el("p", "muted", `No gift cards found for “${q}”. Try another brand.`));
+  if (!found.length)
+    return box.replaceChildren(el("p", "muted", s.network === "testnet"
+      ? `Nothing deliverable for “${q}” on testnet. Real brands need house credit; try “test” for the test cards.`
+      : `No gift cards found for “${q}”. Try another brand.`));
   s.products = found;
   s.productId = found[0].id;
   s.blocked.clear();
