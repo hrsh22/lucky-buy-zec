@@ -1,6 +1,8 @@
 # Lucky Buy — gift cards for shielded Zcash
 
-> **Buy a gift card with shielded ZEC: you always get the card, you might pay half, and the code arrives in an encrypted memo only your wallet can read. No account, no email. An AI agent can do the whole thing for you from its own capped wallet.**
+> **Get a gift card with a shielded Zcash payment: your payment authorises a Bitrefill purchase, you always get the card, a provably fair spin can cut your price (even to free), and the code arrives in an encrypted memo only your wallet can read. No account, no email. An AI agent can do it all from its own capped shielded wallet.**
+>
+> On testnet the shielded TAZ payment *authorises* the purchase; the house pays Bitrefill from its own balance (Bitrefill doesn't take ZEC and has no testnet).
 
 **Try it: https://luckybuy.hrsh.dev** (Zcash testnet: pay with TAZ from any NU7 testnet wallet).
 
@@ -183,6 +185,12 @@ Bitrefill doesn't accept ZEC, so the house pays Bitrefill from its balance and t
 - **Hosting:** a named Cloudflare Tunnel (`cloudflared tunnel run --url http://localhost:8787 luckybuy`) serving luckybuy.hrsh.dev. Rate limits key on `CF-Connecting-IP`.
 
 ## Evidence (real testnet)
+
+**Viewing key for judges.** This is the buyer/agent wallet, which received the delivery memos below. It can see but can't spend. Import it into a testnet wallet to see the amounts and the encrypted memos.
+- Birth height: `4581216`
+- Viewing key: `uviewtest1pwuwqtjd94ck2n9ldcac2jdmxrqztgykfz7tm3y6sdgnquvg3elflh3zyst3cg7cv244hpwncdf94nlje7gu57vplzqy3xq467r36elar8axjcgjn0rgfqdffxrdvq5dnc0ztdugu0ynhym3essmpf5r7lrpzegwxk0az8rtc4jte562tyaf7ur207mjcruqh2t8wq2gjh0kgt3deucjp9j6qlhg2pae6cuquxhwc34rvd66upnmf0peycfus9n7zwwfzgdmzn0aphdfvrfdyfphgxdh7pgfmuerk2ze4fxhwvf0mtt67cm5ud6tx9pkg4a8lchqxxeunran9s4njztgexswlew32zmvaepv3z83kcx5kctcrzylrlgyc3kp5j2kfyaufajy0g93k3lhhrx74060eaewj7qekznc00xjf86ydgnnnc46xx8l298k9gfpqjdkehkta0zngxqhfnmmqn8rwwmq8f9whjgrcgzwhq7p9gkmt53x`
+
+The gift card codes in those memos are Bitrefill test-product dummies.
 
 Explorer links for every transaction are in [SUBMISSION.md](SUBMISSION.md).
 

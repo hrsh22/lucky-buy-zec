@@ -8,7 +8,7 @@ Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-
 
 ## One-line pitch
 
-**Buy gift cards with shielded ZEC: the Voucher is guaranteed, a provably fair Draw can cut the price (even to free), and the code comes back in an encrypted memo. An AI agent can do it all from its own capped wallet.** For people who want to spend ZEC privately, and for the agents that shop for them.
+**Get a gift card with a shielded Zcash payment: the payment authorises a Bitrefill purchase, the card is guaranteed, a provably fair spin can cut your price (even to free), and the code comes back in an encrypted memo only your wallet can read. An AI agent can do it all from its own capped shielded wallet.** For people who want to spend privately, and for the agents that shop for them. (On testnet the shielded payment authorises the purchase; the house pays Bitrefill from its balance.)
 
 ## Which parts are for which track
 
