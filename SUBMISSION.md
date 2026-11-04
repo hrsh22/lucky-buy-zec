@@ -15,7 +15,7 @@ Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-
 | Track | What to judge |
 |---|---|
 | **Privacy (Zcash)**, theme 1 "private payment rails" | **Noir Wallet** one-click connect and pay, then the shielded checkout: per-quote diversified addresses matched to orders by receiving address (zingo-cli patch), exact-amount rules with full refunds, Refund plus Voucher code delivered in an encrypted memo, proof of reserves by published UFVK, a provably fair Draw verified in the browser, and the Nym mixnet for the agent's payments |
-| **Agentic Commerce (Bitrefill)**, lanes 1, 2 and 5 | The MCP server. `lucky_buy` finds the product, pays from the agent's own shielded wallet within hard caps, buys through the Bitrefill API, and reads the code back from the memo, so nothing is copied by hand. Above the caps, a human approves by paying a link |
+| **Agentic Commerce (Bitrefill)**, lanes 1, 2 and 5 | The MCP server. `lucky_search` finds the product in Bitrefill's catalog, `lucky_buy` pays from the agent's own shielded wallet within hard caps, buys through the Bitrefill API, and reads the code back from the memo, so nothing is copied by hand. Above the caps, a human approves by paying a link |
 
 ## Privacy track fields
 
@@ -49,7 +49,8 @@ Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-
 
 **Bitrefill touchpoints:**
 - **What we use:** the Bitrefill REST API v2.
-  - `GET /products/{id}` prices the catalog.
+  - `GET /products/search` lets the agent (`lucky_search`) and the storefront find any in-stock Indian gift card.
+  - `GET /products/{id}` prices what's being quoted.
   - `POST /invoices` with `payment_method: "balance"` and `auto_pay: true` buys.
   - `GET /invoices/{id}` is polled until the order is `delivered`, and the code is read from `redemption_info`.
   - `GET /accounts/balance` is shown on the reserve page.

@@ -24,6 +24,22 @@ const usdCents = (amount: number, currency: string): number => {
 
 // ---------------------------------------------------------------- real client
 
+/** Gift cards only: top-ups need a phone number and we deliberately never ask for one. */
+const buyable = (p: any) => p?.in_stock !== false && (p?.recipient_type ?? "none") === "none";
+
+function toProduct(p: any, pkg: any): Product {
+  // `amount` is the numeric face value; `value` can be a label ("Dinner for One").
+  const amount = Number(pkg.amount ?? pkg.value);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error(`no numeric face value: ${pkg.id}`);
+  return {
+    id: pkg.id,
+    name: `${p.name} ${pkg.value}`,
+    isTest: String(p.id).startsWith("test-"),
+    faceValue: { amount, currency: p.currency },
+    referenceUsdCents: usdCents(amount, p.currency),
+  };
+}
+
 type Json = any;
 
 export class BitrefillClient implements Bitrefill {
@@ -79,8 +95,8 @@ export class BitrefillClient implements Bitrefill {
     return v;
   }
 
+  /** Any Bitrefill package, not just the storefront catalog: the agent can buy what lucky_search finds. */
   product(id: string): Promise<Product> {
-    if (!this.ids.includes(id)) return Promise.reject(new Error(`not in catalog: ${id}`));
     return this.memo(`p:${id}`, () => this.fetchProduct(id));
   }
 
@@ -89,15 +105,28 @@ export class BitrefillClient implements Bitrefill {
     const p = await this.req(`/products/${encodeURIComponent(productId)}${this.qs()}`);
     const pkg = (p.packages ?? []).find((x: Json) => x.id === id);
     if (!pkg) throw new Error(`package gone: ${id}`);
-    // `amount` is the numeric face value; `value` can be a label ("Dinner for One").
-    const amount = Number(pkg.amount ?? pkg.value);
-    return {
-      id,
-      name: `${p.name} ${pkg.value}`,
-      isTest: productId.startsWith("test-"),
-      faceValue: { amount, currency: p.currency },
-      referenceUsdCents: usdCents(amount, p.currency),
-    };
+    if (!buyable(p)) throw new Error(`not buyable here (needs a ${p.recipient_type ?? "recipient"} or out of stock): ${id}`);
+    return toProduct(p, pkg);
+  }
+
+  /** In-stock gift cards (no phone number needed) matching `query`, one entry per package, cheapest first. */
+  search(query: string, country = "IN"): Promise<Product[]> {
+    const qs = new URLSearchParams({ q: query, country, limit: "20" });
+    if (this.test) qs.set("include_test_products", "true");
+    return this.memo(`s:${qs}`, async () => {
+      const found: Json[] = await this.req(`/products/search?${qs}`);
+      return found
+        .filter(buyable)
+        .flatMap((p) => (p.packages ?? []).flatMap((pkg: Json) => {
+          try {
+            return [toProduct(p, pkg)];
+          } catch {
+            return []; // a currency we can't price, or a non-numeric package
+          }
+        }))
+        .sort((a, b) => a.referenceUsdCents - b.referenceUsdCents)
+        .slice(0, 12);
+    });
   }
 
   products(): Promise<Product[]> {
@@ -107,7 +136,7 @@ export class BitrefillClient implements Bitrefill {
   async buy(productId: string, purchaseId: string): Promise<{ invoiceId: string }> {
     const known = this.bought.get(purchaseId);
     if (known) return { invoiceId: known };
-    if (!this.ids.includes(productId)) throw new Error(`not in catalog: ${productId}`);
+    await this.product(productId); // validates it exists, is in stock and needs no phone number
     const inv = await this.req("/invoices", {
       products: [{ product_id: productId.split("<&>")[0], package_id: productId, quantity: 1 }],
       payment_method: "balance",
@@ -188,6 +217,10 @@ export class MockBitrefill implements Bitrefill {
 
   async products(): Promise<Product[]> {
     return MOCK_PRODUCTS;
+  }
+
+  async search(query: string): Promise<Product[]> {
+    return MOCK_PRODUCTS.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
   }
 
   async product(id: string): Promise<Product> {

@@ -168,6 +168,23 @@ function tierBlocked(id) {
   return s.blocked.has(id) || (p && limit != null && p.referenceUsdCents > limit);
 }
 
+/** Bitrefill's whole catalog (gift cards only); an empty query brings back the featured cards. */
+async function search(e) {
+  e.preventDefault();
+  const q = $("#searchQ").value.trim();
+  const box = $("#catalog");
+  box.replaceChildren(el("p", "muted", q ? `Searching for “${q}”…` : "Loading gift cards…"));
+  const found = q
+    ? await fetch(`/api/search?${new URLSearchParams({ q, country: "IN" })}`).then((r) => (r.ok ? r.json() : [])).catch(() => [])
+    : await fetch("/api/products").then((r) => (r.ok ? r.json() : [])).catch(() => []);
+  if (!found.length) return box.replaceChildren(el("p", "muted", `No gift cards found for “${q}”. Try another brand.`));
+  s.products = found;
+  s.productId = found[0].id;
+  s.blocked.clear();
+  renderCatalog();
+  renderTiers();
+}
+
 function renderCatalog() {
   const box = $("#catalog");
   box.replaceChildren();
@@ -454,6 +471,7 @@ async function boot() {
   for (const r of document.querySelectorAll('input[name="mode"]')) r.onchange = () => { s.mode = r.value; renderTiers(); };
   $("#quoteBtn").onclick = getQuote;
   $("#noirConnect").onclick = noirConnect;
+  $("#search").onsubmit = search;
   // the extension can inject after our script runs: check again once the page has loaded
   addEventListener("load", () => { noirInstallHint(); if (noir() && !$("#pay").hidden) $("#noirPay").hidden = false; });
   feed();

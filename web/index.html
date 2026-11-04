@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1793788653">
+  <link rel="stylesheet" href="style.css?v=1793789002">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-  <script type="module" src="app.js?v=1793788653"></script>
+  <script type="module" src="app.js?v=1793789002"></script>
 </head>
 <body>
   <div id="testnet" class="testnet" hidden>Testnet: play money in TAZ and test gift cards</div>
@@ -26,6 +26,10 @@
   <main class="cabinet">
     <section id="pick" class="step">
       <h2>Pick a gift card</h2>
+      <form id="search" class="search" role="search">
+        <input id="searchQ" type="search" placeholder="Find any brand: Flipkart, Swiggy, Amazon…" aria-label="Find a gift card" maxlength="60">
+        <button class="ghost" type="submit">Search</button>
+      </form>
       <div id="catalog" class="catalog" role="radiogroup" aria-label="Gift card"><p class="muted">Loading gift cards…</p></div>
 
       <div class="mode" role="radiogroup" aria-label="How to pay">

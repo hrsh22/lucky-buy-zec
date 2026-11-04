@@ -103,6 +103,14 @@ export function makeApp(d: AppDeps) {
 
   app.get("/api/products", async (ctx) => ctx.json(await bitrefill.products()));
 
+  // Search Bitrefill's whole catalog (gift cards only). Quotes accept any id this returns.
+  app.get("/api/search", async (ctx) => {
+    const q = (ctx.req.query("q") ?? "").trim().slice(0, 60);
+    const country = (ctx.req.query("country") ?? "IN").toUpperCase().slice(0, 2);
+    if (!q || !bitrefill.search) return ctx.json([]);
+    return ctx.json(await bitrefill.search(q, country).catch(() => []));
+  });
+
   // ponytail: in-memory sliding window per IP; resets on restart, fine for one process.
   const quoteTimes = new Map<string, number[]>();
   const overQuoteLimit = (ip: string) => {

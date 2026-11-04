@@ -82,7 +82,7 @@ npm test
 { "mcpServers": { "lucky-buy": { "command": "node", "args": ["--env-file=/abs/path/lucky-buy-zec/.env", "/abs/path/lucky-buy-zec/src/mcp.ts"] } } }
 ```
 
-> *"Buy me a $10 gift card with Lucky Buy Classic."* Claude then calls `lucky_products`, then `lucky_buy`. It pays from its own wallet, waits for the Draw and delivery, and replies with the code from the memo.
+> *"Find me a Flipkart card under a dollar and buy it with Lucky Buy Classic."* Claude calls `lucky_search`, then `lucky_buy`. It pays from its own wallet, waits for the Draw and delivery, and replies with the code from the memo.
 
 ## Guardrails: what an agent can spend
 
@@ -99,7 +99,8 @@ The agent never holds the house's keys, only its own wallet's. `lucky_quote` let
 ## Bitrefill touchpoints
 
 We use the **Bitrefill REST API v2** (`src/bitrefill.ts`):
-- **Product lookup:** `GET /products/{id}` reads package values and prices for the catalog.
+- **Search:** `GET /products/search?q=&country=IN` finds any in-stock gift card. It backs the storefront's search box and the agent's `lucky_search`. Phone top-ups are skipped, because we never ask for a phone number.
+- **Product lookup:** `GET /products/{id}` reads package values and prices for whatever is being quoted.
 - **Buying:** `POST /invoices` with `payment_method: "balance"` and `auto_pay: true` buys from the house balance.
 - **Delivery:** `GET /invoices/{id}` is polled until the order is `delivered`, then `redemption_info` is parsed into a code, PIN and link.
 - **Balance:** `GET /accounts/balance` is shown on `/api/reserve`.
@@ -202,7 +203,7 @@ Explorer links for every transaction are in [SUBMISSION.md](SUBMISSION.md).
 | `src/wallet.ts` | zingo-cli adapter: address pool, notes per address, sends, address validation. Also MockWallet |
 | `src/bitrefill.ts`, `src/rates.ts` | Bitrefill REST client (plus mock); ZEC/USD rate |
 | `src/guardrails.ts` | The agent's spending caps (pure, tested) |
-| `src/mcp.ts` | MCP tools: `lucky_products`, `lucky_quote`, `lucky_buy`, `lucky_code`, `lucky_status`, `lucky_verify`, `lucky_agent_wallet` |
+| `src/mcp.ts` | MCP tools: `lucky_products`, `lucky_search`, `lucky_quote`, `lucky_buy`, `lucky_code`, `lucky_status`, `lucky_verify`, `lucky_agent_wallet` |
 | `web/` | Storefront, reveal and verify pages (browser re-implementation in `fair.js`) |
 | `reference/` | Independent Python model that generates `test/vectors.json` |
 | `scripts/` | Testnet end-to-end run, wallet and Bitrefill smoke tests |

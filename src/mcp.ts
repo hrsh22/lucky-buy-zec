@@ -58,10 +58,27 @@ async function codeFromMemo(p: PurchaseView): Promise<string | null> {
 
 server.registerTool(
   "lucky_products",
-  { description: "List gift cards (Vouchers) available to buy with shielded Zcash, with their Reference Price R in USD." },
+  { description: "The storefront's featured gift cards, with their Reference Price R in USD. Use lucky_search to find anything else." },
   async () => {
     const ps = await api<Product[]>("/api/products");
     return text(ps.map((p) => `${p.id} — ${p.name}${p.isTest ? " (test)" : ""}: R = $${(p.referenceUsdCents / 100).toFixed(2)}`).join("\n"));
+  },
+);
+
+server.registerTool(
+  "lucky_search",
+  {
+    description:
+      "Search Bitrefill's whole catalog for gift cards (e.g. 'flipkart', 'swiggy', 'amazon') in a country (ISO code, default IN). " +
+      "Returns package ids with their Reference Price R in USD, cheapest first; pass an id to lucky_buy or lucky_quote. " +
+      "Phone top-ups are left out because they'd need a phone number.",
+    inputSchema: { query: z.string().min(2), country: z.string().length(2).optional() },
+  },
+  async ({ query, country }) => {
+    const qs = new URLSearchParams({ q: query, country: (country ?? "IN").toUpperCase() });
+    const ps = await api<Product[]>(`/api/search?${qs}`);
+    if (!ps.length) return text(`Nothing found for "${query}". Try a brand name, or another country code.`);
+    return text(ps.map((p) => `${p.id}: ${p.name}, ${p.faceValue.amount} ${p.faceValue.currency} = R $${(p.referenceUsdCents / 100).toFixed(2)}`).join("\n"));
   },
 );
 

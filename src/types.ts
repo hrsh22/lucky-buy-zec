@@ -126,7 +126,8 @@ export type InvoiceState =
   | { status: "failed"; error: string };
 
 export interface Bitrefill {
-  products(): Promise<Product[]>;
+  products(): Promise<Product[]>; // the storefront's catalog
+  search?(query: string, country?: string): Promise<Product[]>; // anything Bitrefill sells that we can deliver
   product(id: string): Promise<Product>;
   buy(productId: string, purchaseId: string): Promise<{ invoiceId: string }>;
   invoice(invoiceId: string): Promise<InvoiceState>;

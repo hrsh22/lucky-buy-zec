@@ -12,6 +12,12 @@ describe("MockBitrefill", () => {
     expect(done.status === "complete" && done.redemption.code).toBeTruthy();
   });
 
+  it("searches by name, case-insensitively", async () => {
+    const b = new MockBitrefill();
+    expect((await b.search("GIFT CARD 5")).map((p) => p.faceValue.amount)).toEqual([5]);
+    expect(await b.search("nothing like this")).toEqual([]);
+  });
+
   it("failNext fails only the next invoice", async () => {
     const b = new MockBitrefill({ pollsToComplete: 1 });
     const [p] = await b.products();
