@@ -74,6 +74,7 @@ npm test
    - `AGENT_DIR` and `AGENT_ZINGO_BIN`.
 
    Then run `npm start`, and `npm run tunnel` if you want a public URL.
+   - **For a long-running demo:** `nohup scripts/keepalive.sh > logs/keepalive.log 2>&1 &` runs the server and a named tunnel. It restarts either one if it exits, and holds off idle sleep while it runs.
 4. Pay a quote from the buyer wallet with `npm run e2e -- classic`, or let Claude do it (below).
 
 **Claude (MCP).** Add this to `claude_desktop_config.json`, or run `claude mcp add` in Claude Code:
