@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1793788127">
+  <link rel="stylesheet" href="style.css?v=1793788653">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-  <script type="module" src="app.js?v=1793788127"></script>
+  <script type="module" src="app.js?v=1793788653"></script>
 </head>
 <body>
   <div id="testnet" class="testnet" hidden>Testnet: play money in TAZ and test gift cards</div>
@@ -36,11 +36,14 @@
       <div id="tiers" class="machines" role="radiogroup" aria-label="Wheel"></div>
       <div id="detail" class="detail"></div>
 
-      <label class="field">
-        <span>Your shielded Zcash address</span>
-        <input id="addr" autocomplete="off" spellcheck="false" placeholder="utest1…">
-        <small>Your Refund and gift card code arrive here in an encrypted memo. No account, no email.</small>
-      </label>
+      <div class="field">
+        <label for="addr">Your shielded Zcash address</label>
+        <div class="addr-row">
+          <input id="addr" autocomplete="off" spellcheck="false" placeholder="utest1…">
+          <button id="noirConnect" class="ghost noir" type="button">Connect Noir Wallet</button>
+        </div>
+        <small>Your Refund and gift card code arrive here in an encrypted memo. No account, no email. <span id="noirHint"></span></small>
+      </div>
 
       <button id="quoteBtn" class="cta">Get my payment ticket</button>
       <p id="quoteErr" class="error" role="alert"></p>
@@ -55,6 +58,7 @@
           <p class="note" id="amountNote"></p>
           <p class="countdown">Ticket valid for <strong id="countdown">15:00</strong></p>
           <div class="ticket-actions">
+            <button id="noirPay" class="cta small" hidden>Pay with Noir Wallet</button>
             <button id="copyUri" class="ghost">Copy payment link</button>
             <button id="devPay" class="ghost">Simulate payment (dev)</button>
           </div>

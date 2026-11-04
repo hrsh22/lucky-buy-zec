@@ -28,8 +28,9 @@ Built at the Free Society Hackathon, Mumbai, 4 Nov 2026, for both tracks:
    Every tier averages exactly 105% of R, so a tier only changes the variance. **The Voucher is always delivered.** The Draw only decides the Refund.
 2. **Pay** the exact amount to a fresh shielded address (ZIP-321 QR). The quote is Ed25519-signed and commits to `SHA-256(seed)` before you pay.
 3. After one confirmation, the server runs the **Draw** (`roll = SHA-256(seed ‖ quote id ‖ your txid ‖ "LUCKY_BUY_V1")`), buys the Voucher through the **Bitrefill API**, and sends your **Refund plus the code in an encrypted memo** to your return address.
-4. **Verify** in your browser: the seed matches the commitment, the signature is valid, and the roll and outcome recompute. The check runs against the signed quote your browser saved when you bought.
-5. **Agent mode:** Claude calls `lucky_buy`.
+4. With the **Noir Wallet** extension, step 2 is two clicks: connect to fill in your address, then pay the ticket in the wallet's approval screen. No copy-pasting addresses.
+5. **Verify** in your browser: the seed matches the commitment, the signature is valid, and the roll and outcome recompute. The check runs against the signed quote your browser saved when you bought.
+6. **Agent mode:** Claude calls `lucky_buy`.
    - The agent pays from its own shielded wallet, within its caps. Its broadcasts go over the **Nym mixnet**.
    - It decrypts the delivery memo and replies with the code.
    - Above the caps, it hands you a payment link to approve instead.
@@ -158,6 +159,9 @@ Bitrefill doesn't accept ZEC, so the house pays Bitrefill from its balance and t
   - [zingolib / zingo-cli](https://github.com/zingolabs/zingolib) v8, patched, against `testnet.zec.rocks`;
   - unified full viewing keys for proof of reserves.
 - **Nym:** zingo-cli's built-in Nym mixnet transport (`nym-proxy`) for the agent wallet's broadcasts.
+- **Noir Wallet:** browser-extension integration through its injected provider (`window.noirwallet`, the API that `@noir-wallet/sdk` wraps).
+  - "Connect Noir Wallet" fills in the shielded return address (`zcash_requestAccounts`).
+  - "Pay with Noir Wallet" pays the exact ticket amount, with the order memo, in one approval (`zcash_sendTransaction`).
 - **Bitrefill:** REST API v2 (products, invoices with `auto_pay` from balance, redemption info).
 - **AI:** Model Context Protocol, using the official TypeScript SDK, as a stdio server for Claude and other MCP clients.
 - **Server:** Node.js 24 running TypeScript directly, Hono, `node:sqlite`, zod, and Ed25519 / SHA-256 from `node:crypto`.

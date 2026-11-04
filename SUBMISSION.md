@@ -14,7 +14,7 @@ Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-
 
 | Track | What to judge |
 |---|---|
-| **Privacy (Zcash)**, theme 1 "private payment rails" | The shielded checkout: per-quote diversified addresses matched to orders by receiving address (zingo-cli patch), exact-amount rules with full refunds, Refund plus Voucher code delivered in an encrypted memo, proof of reserves by published UFVK, a provably fair Draw verified in the browser, and the Nym mixnet for the agent's payments |
+| **Privacy (Zcash)**, theme 1 "private payment rails" | **Noir Wallet** one-click connect and pay, then the shielded checkout: per-quote diversified addresses matched to orders by receiving address (zingo-cli patch), exact-amount rules with full refunds, Refund plus Voucher code delivered in an encrypted memo, proof of reserves by published UFVK, a provably fair Draw verified in the browser, and the Nym mixnet for the agent's payments |
 | **Agentic Commerce (Bitrefill)**, lanes 1, 2 and 5 | The MCP server. `lucky_buy` finds the product, pays from the agent's own shielded wallet within hard caps, buys through the Bitrefill API, and reads the code back from the memo, so nothing is copied by hand. Above the caps, a human approves by paying a link |
 
 ## Privacy track fields

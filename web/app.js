@@ -105,6 +105,55 @@ function showWheel(q) {
   wheel = { wrap, svg, hub, lights };
 }
 
+// ---------------------------------------------------------------- Noir Wallet (browser extension)
+
+// Noir injects window.noirwallet; we call its provider directly (the same requests @noir-wallet/sdk wraps).
+const NOIR_TESTNET = "https://github.com/NoirWallet/noir-wallet/releases/latest";
+const noir = () => window.noirwallet?.zcash ?? null;
+const noirCall = (method, params) => noir().request(params ? { method, params } : { method });
+
+function noirInstallHint() {
+  const hint = $("#noirHint");
+  hint.replaceChildren();
+  if (noir()) return;
+  const a = Object.assign(el("a", null, "Noir Wallet"), { href: s.network === "mainnet" ? "https://chromewebstore.google.com/detail/noir-wallet/mfoghjbpfanobmnoemoepenjjcmfpmdn" : NOIR_TESTNET, target: "_blank", rel: "noopener" });
+  hint.append("No wallet handy? Install ", a, s.network === "mainnet" ? " and connect it." : " (testnet build: load the -testnet.zip unpacked) and connect it.");
+}
+
+async function noirConnect() {
+  const btn = $("#noirConnect");
+  const err = $("#quoteErr");
+  if (!noir()) return window.open(s.network === "mainnet" ? "https://chromewebstore.google.com/detail/noir-wallet/mfoghjbpfanobmnoemoepenjjcmfpmdn" : NOIR_TESTNET, "_blank", "noopener");
+  btn.disabled = true;
+  try {
+    const acct = await noirCall("zcash_requestAccounts");
+    if (!acct?.shielded) throw new Error("the wallet returned no shielded address");
+    $("#addr").value = acct.shielded;
+    btn.textContent = "Noir connected";
+    noirInstallHint();
+    btn.classList.add("connected");
+    err.textContent = "";
+  } catch (e) {
+    err.textContent = `Noir Wallet didn't connect: ${e.message ?? e}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function noirPay(q) {
+  const btn = $("#noirPay");
+  btn.disabled = true;
+  $("#payErr").textContent = "";
+  try {
+    const txid = await noirCall("zcash_sendTransaction", [{ to: q.payAddress, amount: formatZec(q.maxPriceZat), memo: `Lucky Buy ${q.id}`, fundingSource: "shielded" }]);
+    btn.textContent = "Paid with Noir";
+    $("#statusNote").textContent = `Payment sent (${String(txid).slice(0, 10)}…). The wheel spins once it's in a block.`;
+  } catch (e) {
+    btn.disabled = false;
+    $("#payErr").textContent = `Noir Wallet didn't send: ${e.message ?? e}. You can also pay with the QR code or link.`;
+  }
+}
+
 function setNetwork(network) {
   s.network = network;
   $("#testnet").hidden = network !== "testnet";
@@ -245,6 +294,8 @@ function showQuote(q, zip321) {
     try { await navigator.clipboard.writeText(zip321); $("#copyUri").textContent = "Copied"; } catch { $("#copyUri").textContent = "Copy failed, select the link"; }
   };
   $("#devPay").onclick = () => devPay(q.id);
+  $("#noirPay").hidden = !noir();
+  $("#noirPay").onclick = () => noirPay(q);
   const tick = () => {
     const left = Math.max(0, new Date(q.expiresAt) - Date.now());
     $("#countdown").textContent = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
@@ -301,6 +352,7 @@ function render(p) {
   if (off) ol.append(el("li", p.status === "REFUNDED" ? "done off" : "now off", off[0]));
   if (p.status !== "QUOTED") $("#pay").classList.add("locked");
   $("#devPay").hidden ||= p.status !== "QUOTED";
+  if (p.status !== "QUOTED") $("#noirPay").hidden = true;
   $("#statusNote").textContent = off
     ? off[1] || (p.roll != null ? "" : REASON[p.refundReason]) || "" // after a Draw the reveal shows the reason
     : p.status === "QUOTED" && p.confirmations === 0
@@ -401,6 +453,9 @@ async function boot() {
   $("#addr").value = store.get("luckybuy.addr");
   for (const r of document.querySelectorAll('input[name="mode"]')) r.onchange = () => { s.mode = r.value; renderTiers(); };
   $("#quoteBtn").onclick = getQuote;
+  $("#noirConnect").onclick = noirConnect;
+  // the extension can inject after our script runs: check again once the page has loaded
+  addEventListener("load", () => { noirInstallHint(); if (noir() && !$("#pay").hidden) $("#noirPay").hidden = false; });
   feed();
   const [products, reserve] = await Promise.all([
     fetch("/api/products").then((r) => (r.ok ? r.json() : [])).catch(() => []),
@@ -409,6 +464,7 @@ async function boot() {
   s.products = products;
   s.reserve = reserve;
   if (reserve) setNetwork(reserve.network);
+  noirInstallHint();
   s.productId = products[0]?.id ?? null;
   if (!products.length) $("#catalog").replaceChildren(el("p", "error", "The gift cards didn't load. Reload the page to try again."));
   else renderCatalog();

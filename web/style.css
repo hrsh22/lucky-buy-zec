@@ -280,3 +280,13 @@ body > main:not(.cabinet) { max-width: 760px; margin: 0 auto; padding: 0 16px 4r
   .mode label { flex: 1; }
   .mode span { text-align: center; white-space: nowrap; padding: .55rem .5rem; font-size: .95rem; }
 }
+
+/* Noir Wallet: connect + one-click pay */
+.field > label { font-weight: 700; }
+.addr-row { display: flex; gap: .5rem; }
+.addr-row input { flex: 1; min-width: 0; }
+.ghost.noir { white-space: nowrap; border-color: var(--gold); color: var(--gold-hot); }
+.ghost.noir.connected { border-color: var(--green); color: var(--green); }
+#noirHint a { color: var(--gold-hot); }
+.ticket .cta.small { box-shadow: 0 4px 0 #8a5a00; }
+@media (max-width: 520px) { .addr-row { flex-direction: column; } }
