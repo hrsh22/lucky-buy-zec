@@ -107,6 +107,19 @@ export function openDb(path = ":memory:") {
       return sum;
     },
 
+    /**
+     * USD cents of real (non-test) Vouchers committed in the last 24 h: every quote that isn't expired or
+     * refunded, so open quotes count too. Feeds the house's daily Bitrefill budget.
+     */
+    realSpendUsdCents(now = new Date()): number {
+      const since = new Date(now.getTime() - 24 * 3600_000).toISOString();
+      const r = db.prepare(
+        `SELECT COALESCE(SUM(json_extract(data, '$.quote.referenceUsdCents')), 0) AS c FROM purchases
+         WHERE created_at >= ? AND json_extract(data, '$.quote.isTestProduct') = 0 AND status NOT IN ('EXPIRED', 'REFUNDED')`,
+      ).get(since) as { c: number };
+      return r.c;
+    },
+
     /** The latest drawn purchases, newest first, for the "recent spins" feed. */
     recentDraws(n = 8): Purchase[] {
       return db.prepare("SELECT data FROM purchases WHERE json_extract(data, '$.finalBps') IS NOT NULL ORDER BY updated_at DESC LIMIT ?")

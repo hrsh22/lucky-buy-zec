@@ -251,7 +251,7 @@ async function getQuote() {
       return;
     }
     if (!r.ok) {
-      err.textContent = r.status === 400 ? `That address doesn't look right. Paste a shielded address that starts with ${s.network === "mainnet" ? "u1" : "utest1"}.` : r.status === 429 ? "Too many tickets from your connection. Try again in a few minutes." : body.error === "unknown_product" ? "That gift card is no longer listed." : `Couldn't create a ticket: ${body.error ?? r.status}.`;
+      err.textContent = r.status === 400 ? `That address doesn't look right. Paste a shielded address that starts with ${s.network === "mainnet" ? "u1" : "utest1"}.` : r.status === 429 ? "Too many tickets from your connection. Try again in a few minutes." : body.error === "daily_budget_reached" ? "Today's real gift cards are sold out. Pick a test card, or come back tomorrow." : body.error === "unknown_product" ? "That gift card is no longer listed." : `Couldn't create a ticket: ${body.error ?? r.status}.`;
       return;
     }
     history.replaceState(null, "", `?id=${body.quote.id}`);

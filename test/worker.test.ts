@@ -16,7 +16,7 @@ class FakeBitrefill implements Bitrefill {
     return [await this.product("test-5")];
   }
   async product(id: string) {
-    return { id, name: "Test Card", isTest: true, faceValue: { amount: 5, currency: "USD" }, referenceUsdCents: 500 };
+    return { id, name: "Test Card", isTest: !id.startsWith("real-"), faceValue: { amount: 5, currency: "USD" }, referenceUsdCents: 500 };
   }
   async buy(_productId: string, purchaseId: string) {
     if (this.throwNext) {
@@ -39,7 +39,7 @@ class FakeBitrefill implements Bitrefill {
   }
 }
 
-function setup(opts: { quotesPerIpPer10Min?: number } = {}) {
+function setup(opts: { quotesPerIpPer10Min?: number; realBudgetUsdCentsPerDay?: number } = {}) {
   const db = openDb();
   const wallet = new MockWallet({ reserveZat: 100_000_000 }); // 1 TAZ = $1,000 at the test rate
   const bitrefill = new FakeBitrefill();
@@ -48,8 +48,8 @@ function setup(opts: { quotesPerIpPer10Min?: number } = {}) {
   const app = makeApp({
     db, wallet, bitrefill, network: "testnet", seedHex: "11".repeat(32), rates: { usdCentsPerZec: async () => 100_000 }, ...opts,
   });
-  const quote = async (tier = "classic", returnAddress = BUYER) => {
-    const res = await app.request("/api/quote", { method: "POST", body: JSON.stringify({ productId: "test-5", tier, returnAddress }) });
+  const quote = async (tier = "classic", returnAddress = BUYER, productId = "test-5") => {
+    const res = await app.request("/api/quote", { method: "POST", body: JSON.stringify({ productId, tier, returnAddress }) });
     return { status: res.status, body: (await res.json()) as SignedQuote & { error?: string } };
   };
   const ticks = async (n = 4) => {
@@ -228,6 +228,21 @@ describe("server", () => {
     let sequential = 0;
     for (let i = 0; i < 20; i++) if ((await s2.quote("moonshot")).status === 200) sequential++;
     expect(ok).toBe(sequential);
+  });
+
+  it("caps real (non-test) Vouchers per day; refunded and test purchases don't count", async () => {
+    const s = setup({ realBudgetUsdCentsPerDay: 1_000 }); // two $5 real cards
+    const a = await s.quote("standard", BUYER, "real-5");
+    expect(a.status).toBe(200);
+    expect((await s.quote("standard", BUYER, "real-5")).status).toBe(200);
+    const third = await s.quote("standard", BUYER, "real-5");
+    expect([third.status, third.body.error]).toEqual([409, "daily_budget_reached"]);
+    expect((await s.quote("standard", BUYER, "test-5")).status).toBe(200); // test cards cost the house nothing
+    // an underpaid (refunded) real purchase frees its share of the budget
+    s.wallet.simulatePayment(a.body.quote.payAddress, a.body.quote.maxPriceZat - 1);
+    await s.ticks();
+    expect(s.db.get(a.body.quote.id)!.status).toBe("REFUNDED");
+    expect((await s.quote("standard", BUYER, "real-5")).status).toBe(200);
   });
 
   it("rate-limits quotes per client IP", async () => {

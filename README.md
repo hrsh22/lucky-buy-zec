@@ -91,6 +91,7 @@ npm test
 | Per purchase | `AGENT_MAX_ZEC_PER_PURCHASE=0.03` TAZ | Nothing is paid. The agent returns a ZIP-321 link, and **the human approves by paying it from their own wallet** |
 | Per rolling 24 h | `AGENT_MAX_ZEC_PER_DAY=0.1` TAZ, kept in a ledger file so it survives restarts | Same |
 | Per request | optional `maxZec` budget from the user's prompt | Same |
+| House: real gift cards per 24 h | `BITREFILL_REAL_BUDGET_USD_CENTS_PER_DAY=1500` on testnet. Testnet buyers pay with free TAZ while the house pays Bitrefill real money, so this stops a public URL being drained | Quotes are refused before anyone pays |
 | Hard ceiling | whatever sits in the agent wallet: fund it like a prepaid card | — |
 
 The agent never holds the house's keys, only its own wallet's. `lucky_quote` lets an agent with no wallet at all quote and hand over the link.
@@ -187,7 +188,7 @@ Explorer links for every transaction are in [SUBMISSION.md](SUBMISSION.md).
 
 1. **Real product delivery on mainnet** with a funded Bitrefill balance: Indian gift cards and talktime top-ups, priced in INR.
 2. **Nym for sync as well** (NymVPN or the Nym Zcash SDK), so neither the house nor the agent leaks its IP to the indexer.
-3. **Upstream the zingo-cli patch** (receiving address per note) as a PR to zingolib. Payment processors need it to match orders without memos.
+3. **Upstream the zingo-cli patch** (receiving address per note) to zingolib. Payment processors need it to match orders without memos. Following their AI policy, it starts as an issue ([draft](docs/upstream-zingolib-issue.md)), with the PR offered once maintainers respond.
 4. **Remove operator voiding:** buy the Voucher before revealing the seed, and publish signed receipts linking payment, invoice and outcome.
 5. **A pilot with a Mumbai shop or creator** who wants private payments plus a "lucky" checkout option.
 
@@ -200,6 +201,7 @@ Explorer links for every transaction are in [SUBMISSION.md](SUBMISSION.md).
 | `src/game.ts` | Tiers, Draw, money maths, Kelly admission |
 | `src/wallet.ts` | zingo-cli adapter: address pool, notes per address, sends, address validation. Also MockWallet |
 | `src/bitrefill.ts`, `src/rates.ts` | Bitrefill REST client (plus mock); ZEC/USD rate |
+| `src/guardrails.ts` | The agent's spending caps (pure, tested) |
 | `src/mcp.ts` | MCP tools: `lucky_products`, `lucky_quote`, `lucky_buy`, `lucky_code`, `lucky_status`, `lucky_verify`, `lucky_agent_wallet` |
 | `web/` | Storefront, reveal and verify pages (browser re-implementation in `fair.js`) |
 | `reference/` | Independent Python model that generates `test/vectors.json` |

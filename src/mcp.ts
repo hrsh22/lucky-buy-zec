@@ -8,6 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { TIERS, ZAT_PER_ZEC, formatZec, type TierId } from "./game.ts";
 import { ZingoWallet } from "./wallet.ts";
+import { checkSpend, spentInLast24h, type Spend } from "./guardrails.ts";
 import type { Product, PurchaseView, QuoteResponse, SignedQuote, VerifyView, ZcashNetwork } from "./types.ts";
 
 const API = (process.env.LUCKY_API_URL ?? "http://localhost:8787").replace(/\/$/, "");
@@ -41,13 +42,9 @@ const agent = env.AGENT_DIR
   : null;
 
 /** Spend ledger: every payment the agent made, so the daily cap survives restarts. */
-type Spend = { at: string; quoteId: string; zat: number; txid: string };
 const LEDGER = env.AGENT_LEDGER ?? `${env.AGENT_DIR ?? "."}/../agent-ledger.json`;
 const ledger = (): Spend[] => (existsSync(LEDGER) ? JSON.parse(readFileSync(LEDGER, "utf8")) : []);
-const spentTodayZat = () => {
-  const since = Date.now() - 24 * 3600_000;
-  return ledger().filter((s) => Date.parse(s.at) > since).reduce((sum, s) => sum + s.zat, 0);
-};
+const spentTodayZat = () => spentInLast24h(ledger());
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -181,10 +178,11 @@ server.registerTool(
     if ("error" in r) return text(`Quote refused: ${r.error}${"availableTiers" in r ? `. Available tiers: ${r.availableTiers.join(", ")}` : ""}.`);
     const { quote: q, zip321 } = r as SignedQuote;
     const price = q.maxPriceZat;
+    const refusal = checkSpend(price, CAPS, spentTodayZat(), maxZec === undefined ? undefined : zat(maxZec));
     const over =
-      maxZec !== undefined && price > zat(maxZec) ? `the ${maxZec} ${unit} budget`
-      : price > CAPS.perPurchaseZat ? `the per-purchase cap of ${formatZec(CAPS.perPurchaseZat)} ${unit}`
-      : spentTodayZat() + price > CAPS.perDayZat ? `the 24 h cap of ${formatZec(CAPS.perDayZat)} ${unit} (spent ${formatZec(spentTodayZat())})`
+      refusal?.limit === "budget" ? `the ${maxZec} ${unit} budget`
+      : refusal?.limit === "perPurchase" ? `the per-purchase cap of ${formatZec(refusal.maxZat)} ${unit}`
+      : refusal?.limit === "perDay" ? `the 24 h cap of ${formatZec(refusal.maxZat)} ${unit} (spent ${formatZec(refusal.spentZat)})`
       : null;
     if (over)
       return text(

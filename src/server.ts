@@ -56,6 +56,11 @@ export interface AppDeps {
   quoteTtlMin?: number;
   quoteGraceMin?: number;
   kellyFraction?: number;
+  /**
+   * Max USD cents of real (non-test) Vouchers per 24 h. On testnet buyers pay with free TAZ while the house pays
+   * Bitrefill real money, so this caps what a public URL can drain. Unset = unlimited.
+   */
+  realBudgetUsdCentsPerDay?: number;
   /** Max quotes per client IP per 10 minutes; unset = unlimited (tests). Each open quote holds reserve capacity. */
   quotesPerIpPer10Min?: number;
   feed?: EventEmitter;
@@ -124,6 +129,8 @@ export function makeApp(d: AppDeps) {
     if (!product) return ctx.json({ error: "unknown_product" }, 404);
     const rate = await rates.usdCentsPerZec();
     const R = product.referenceUsdCents;
+    if (!product.isTest && d.realBudgetUsdCentsPerDay !== undefined && db.realSpendUsdCents() + R > d.realBudgetUsdCentsPerDay)
+      return ctx.json({ error: "daily_budget_reached" }, 409);
     const B = await reserveUsdCents(rate);
     const tierAvailable = () => availableTiers(R, B, openLoss(), c);
     if (!tierAvailable().includes(tier)) return ctx.json({ error: "tier_unavailable", availableTiers: tierAvailable() }, 409);
@@ -257,7 +264,9 @@ if (import.meta.main) {
     db, wallet, bitrefill, rates: makeRates(env), network, seedHex: loadSeed(env, dbPath), feed,
     confirmations: (addr) => worker.paymentConfirmations.get(addr),
     quoteTtlMin: Number(env.QUOTE_TTL_MIN ?? 15), quoteGraceMin: Number(env.QUOTE_GRACE_MIN ?? 10),
-    quotesPerIpPer10Min: Number(env.QUOTES_PER_IP_PER_10MIN ?? 10), kellyFraction: Number(env.KELLY_FRACTION ?? KELLY_FRACTION),
+    quotesPerIpPer10Min: Number(env.QUOTES_PER_IP_PER_10MIN ?? 10),
+    // ponytail: one global daily budget; per-buyer budgets would need buyer identity we deliberately don't keep
+    realBudgetUsdCentsPerDay: Number(env.BITREFILL_REAL_BUDGET_USD_CENTS_PER_DAY ?? (network === "mainnet" ? Infinity : 1500)), kellyFraction: Number(env.KELLY_FRACTION ?? KELLY_FRACTION),
     devPay: wallet instanceof MockWallet
       ? async (p) => {
           wallet.simulatePayment(p.quote.payAddress, p.quote.maxPriceZat);
