@@ -3,7 +3,7 @@
 Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-society-hack-2026). Enter **both tracks**.
 
 - **Repo:** https://github.com/hrsh22/lucky-buy-zec
-- **Public URL:** https://luckybuy.hrsh.dev (Zcash testnet). Judges can quote, pay from any NU7 testnet wallet, and verify. The reserve and admission limits are at https://luckybuy.hrsh.dev/api/reserve.
+- **Public URL:** https://luckybuy.hrsh.dev (Zcash testnet). With no testnet wallet, click **Use demo wallet**, then **Pay with demo wallet**: a house-run testnet wallet sends a real payment for you. Judges can quote, pay from any NU7 testnet wallet, and verify. The reserve and admission limits are at https://luckybuy.hrsh.dev/api/reserve.
 - **Demo video:** 3 minutes max (script below).
 
 ## One-line pitch
@@ -89,7 +89,7 @@ The whole run took 105 s, and verify passes all four checks.
 
 **Guardrails:**
 - **Per purchase:** at most 0.03 TAZ (`AGENT_MAX_ZEC_PER_PURCHASE`).
-- **Per 24 h:** at most 0.1 TAZ (`AGENT_MAX_ZEC_PER_DAY`), kept in a persistent ledger.
+- **Per 24 h:** at most 1 TAZ (`AGENT_MAX_ZEC_PER_DAY`), kept in a persistent ledger.
 - **Per request:** an optional `maxZec` budget.
 - **Hard ceiling:** whatever is in the agent wallet.
 - **Above the caps:** the agent pays nothing and returns a ZIP-321 link. The human approves by paying it from their own wallet.
