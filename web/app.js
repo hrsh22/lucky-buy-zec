@@ -313,7 +313,15 @@ function showQuote(q, zip321) {
   $("#copyUri").onclick = async () => {
     try { await navigator.clipboard.writeText(zip321); $("#copyUri").textContent = "Copied"; } catch { $("#copyUri").textContent = "Copy failed, select the link"; }
   };
-  $("#devPay").onclick = () => devPay(q.id);
+  if (isDemoTicket(q)) {
+    $("#devPay").textContent = "Pay with demo wallet";
+    $("#devPay").className = "cta small";
+    $("#devPay").hidden = false;
+    $("#devPay").onclick = () => demoPay(q.id);
+  } else {
+    $("#devPay").hidden = !!s.demo; // a real-wallet server has no simulated payments
+    $("#devPay").onclick = () => devPay(q.id);
+  }
   $("#noirPay").hidden = !noir();
   $("#noirPay").onclick = () => noirPay(q);
   const tick = () => {
@@ -322,6 +330,62 @@ function showQuote(q, zip321) {
   };
   tick();
   s.timers.push(setInterval(tick, 1000));
+}
+
+// ---------------------------------------------------------------- demo wallet (house-run, real testnet payments)
+
+// Addresses the demo wallet issued in this browser: only those tickets can be paid by it.
+const demoAddrs = () => { try { return JSON.parse(store.get("luckybuy.demoAddrs") || "[]"); } catch { return []; } };
+const isDemoTicket = (q) => s.demo && demoAddrs().includes(q.returnAddress);
+
+async function useDemoWallet() {
+  const btn = $("#demoAddr");
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/demo/address", { method: "POST" });
+    const { address } = await r.json();
+    if (!address) throw new Error("no address");
+    $("#addr").value = address;
+    store.set("luckybuy.demoAddrs", JSON.stringify([...demoAddrs(), address].slice(-20)));
+    btn.textContent = "Demo wallet ready";
+    btn.classList.add("connected");
+    $("#quoteErr").textContent = "";
+  } catch {
+    $("#quoteErr").textContent = "The demo wallet isn't available right now. Paste your own shielded address instead.";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function demoPay(id) {
+  const btn = $("#devPay");
+  btn.disabled = true;
+  btn.textContent = "Demo wallet is paying…";
+  $("#payErr").textContent = "";
+  const r = await fetch(`/api/demo/pay/${id}`, { method: "POST" }).catch(() => null);
+  const body = await r?.json().catch(() => ({}));
+  if (r?.ok) {
+    btn.textContent = "Paid by the demo wallet";
+    $("#statusNote").textContent = `Real testnet payment sent (${String(body.txid).slice(0, 10)}…). The wheel spins once it's in a block.`;
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = "Pay with demo wallet";
+  $("#payErr").textContent = `The demo wallet couldn't pay: ${body?.error ?? "no connection"}. Try again in a moment.`;
+}
+
+/** After delivery, the memo only the demo wallet can decrypt (codes masked by the server). */
+async function showDemoMemo(id) {
+  for (let i = 0; i < 40; i++) {
+    const { memo } = await fetch(`/api/demo/memo/${id}`).then((r) => r.json()).catch(() => ({}));
+    if (memo) {
+      const box = el("div", "memo");
+      box.append(el("p", "memo-head", "The demo wallet decrypted this memo:"), el("pre", null, memo));
+      $("#reveal").append(box);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 6000));
+  }
 }
 
 async function devPay(id) {
@@ -442,7 +506,10 @@ async function poll(id) {
     if (r.status === 404) return ($("#statusNote").textContent = "No purchase with this id.");
     const p = await r.json();
     render(p);
-    if (TERMINAL.has(p.status)) return s.timers.forEach(clearInterval);
+    if (TERMINAL.has(p.status)) {
+      if (isDemoTicket(p.quote) && (p.status === "DELIVERED" || p.status === "REFUNDED")) showDemoMemo(p.id);
+      return s.timers.forEach(clearInterval);
+    }
   } catch {}
   setTimeout(() => poll(id), 3000);
 }
@@ -474,14 +541,18 @@ async function boot() {
   for (const r of document.querySelectorAll('input[name="mode"]')) r.onchange = () => { s.mode = r.value; renderTiers(); };
   $("#quoteBtn").onclick = getQuote;
   $("#noirConnect").onclick = noirConnect;
+  $("#demoAddr").onclick = useDemoWallet;
   $("#search").onsubmit = search;
   // the extension can inject after our script runs: check again once the page has loaded
   addEventListener("load", () => { noirInstallHint(); if (noir() && !$("#pay").hidden) $("#noirPay").hidden = false; });
   feed();
-  const [products, reserve] = await Promise.all([
+  const [products, reserve, demo] = await Promise.all([
     fetch("/api/products").then((r) => (r.ok ? r.json() : [])).catch(() => []),
     fetch("/api/reserve").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch("/api/demo").then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
+  s.demo = !!demo?.enabled;
+  $("#demoAddr").hidden = !s.demo;
   s.products = products;
   s.reserve = reserve;
   if (reserve) setNetwork(reserve.network);

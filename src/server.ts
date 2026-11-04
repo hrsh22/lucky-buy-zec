@@ -44,6 +44,21 @@ const ADDRESS_PREFIXES: Record<ZcashNetwork, string[]> = { mainnet: ["u1", "zs1"
 export const isShieldedOn = (addr: string, network: ZcashNetwork) =>
   /^[a-z0-9]+$/.test(addr) && ADDRESS_PREFIXES[network].some((p) => addr.startsWith(p));
 
+// ---------------------------------------------------------------- demo wallet
+
+export interface DemoWallet {
+  /** A fresh address of the demo wallet; it remembers every address it hands out. */
+  newAddress(): Promise<string>;
+  /** Whether the demo wallet issued this address (only those tickets may be paid by it). */
+  owns(addr: string): boolean;
+  send(to: string, zat: number, memo: string): Promise<{ txid: string }>;
+  /** The memo of a note this wallet received, or null if it hasn't arrived yet. */
+  memo(txid: string): Promise<string | null>;
+}
+
+/** Codes are cash: the public API only ever shows a demo memo with its codes masked. */
+export const maskCodes = (memo: string) => memo.replace(/^(Code|PIN): (\S{0,4})\S*/gm, (_, k, head) => `${k}: ${head}••••••••`);
+
 // ---------------------------------------------------------------- app
 
 export interface AppDeps {
@@ -65,6 +80,8 @@ export interface AppDeps {
   quotesPerIpPer10Min?: number;
   feed?: EventEmitter;
   devPay?: (p: Purchase) => Promise<void>; // only with MOCK_WALLET=1
+  /** A house-run testnet wallet that pays for visitors who have none (DEMO_WALLET=1). Real payments, not mocks. */
+  demo?: DemoWallet;
   confirmations?: (payAddress: string) => number | undefined;
 }
 
@@ -224,6 +241,39 @@ export function makeApp(d: AppDeps) {
     }),
   );
 
+  if (d.demo) {
+    const demo = d.demo;
+    const paid = new Set<string>(); // quote ids, so a double click can never pay twice
+
+    app.get("/api/demo", (ctx) => ctx.json({ enabled: true }));
+
+    // A fresh address of the demo wallet: tickets paid by the demo wallet must send their Refund and code back to it.
+    app.post("/api/demo/address", async (ctx) => ctx.json({ address: await demo.newAddress() }));
+
+    app.post("/api/demo/pay/:id", async (ctx) => {
+      const p = db.get(ctx.req.param("id"));
+      if (!p || p.status !== "QUOTED") return ctx.json({ error: "not_payable" }, 409);
+      if (!demo.owns(p.quote.returnAddress)) return ctx.json({ error: "not_a_demo_ticket" }, 403);
+      if (paid.has(p.id)) return ctx.json({ error: "already_paid" }, 409);
+      paid.add(p.id); // claimed before the slow send
+      try {
+        const { txid } = await demo.send(p.quote.payAddress, p.quote.maxPriceZat, `Lucky Buy ${p.id}`);
+        return ctx.json({ txid });
+      } catch (e) {
+        paid.delete(p.id);
+        return ctx.json({ error: `demo wallet couldn't pay: ${(e as Error).message.slice(0, 120)}` }, 502);
+      }
+    });
+
+    app.get("/api/demo/memo/:id", async (ctx) => {
+      const p = db.get(ctx.req.param("id"));
+      const back = p?.sendTxid ?? p?.refundTxid;
+      if (!p || !demo.owns(p.quote.returnAddress) || !back) return ctx.json({ memo: null });
+      const memo = await demo.memo(back).catch(() => null);
+      return ctx.json({ memo: memo ? maskCodes(memo) : null });
+    });
+  }
+
   if (d.devPay) {
     app.post("/api/dev/pay/:id", async (ctx) => {
       const p = db.get(ctx.req.param("id"));
@@ -255,7 +305,7 @@ function loadSeed(env: NodeJS.ProcessEnv, dbPath: string): string {
 }
 
 if (import.meta.main) {
-  const { MockWallet, makeWallet } = await import("./wallet.ts");
+  const { MockWallet, ZingoWallet, makeWallet } = await import("./wallet.ts");
   const { makeBitrefill } = await import("./bitrefill.ts");
   const { makeRates } = await import("./rates.ts");
   const env = process.env;
@@ -279,6 +329,29 @@ if (import.meta.main) {
     quotesPerIpPer10Min: Number(env.QUOTES_PER_IP_PER_10MIN ?? 10),
     // ponytail: one global daily budget; per-buyer budgets would need buyer identity we deliberately don't keep
     realBudgetUsdCentsPerDay: Number(env.BITREFILL_REAL_BUDGET_USD_CENTS_PER_DAY ?? (network === "mainnet" ? Infinity : 1500)), kellyFraction: Number(env.KELLY_FRACTION ?? KELLY_FRACTION),
+    demo: env.DEMO_WALLET === "1" && env.DEMO_DIR && !(wallet instanceof MockWallet)
+      ? (() => {
+          const buyer = new ZingoWallet({
+            bin: env.DEMO_ZINGO_BIN || env.ZINGO_BIN || "zingo-cli", network,
+            server: env.LIGHTWALLETD_URL ?? "https://testnet.zec.rocks:443", syncBeforeSend: true,
+            // its own wallet: the agent and `npm run pay` use BUYER_DIR, and two processes must never share one
+            dirs: { till: env.DEMO_DIR!, reserve: env.DEMO_DIR! },
+          });
+          const file = `${dbPath}-demo-addresses.json`; // gitignored via *.sqlite-*
+          const issued = new Set<string>(existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []);
+          return {
+            newAddress: async () => {
+              const a = await buyer.newAddress();
+              issued.add(a);
+              writeFileSync(file, JSON.stringify([...issued]));
+              return a;
+            },
+            owns: (addr: string) => issued.has(addr),
+            send: (to: string, zat: number, memo: string) => buyer.send("till", to, zat, memo),
+            memo: async (txid: string) => (await buyer.received()).find((n) => n.txid === txid)?.memo ?? null,
+          };
+        })()
+      : undefined,
     devPay: wallet instanceof MockWallet
       ? async (p) => {
           wallet.simulatePayment(p.quote.payAddress, p.quote.maxPriceZat);

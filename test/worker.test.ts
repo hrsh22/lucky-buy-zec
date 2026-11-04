@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { openDb } from "../src/db.ts";
 import { deliveryZat } from "../src/game.ts";
-import { makeApp } from "../src/server.ts";
+import { makeApp, maskCodes, type DemoWallet } from "../src/server.ts";
 import { MockWallet } from "../src/wallet.ts";
 import { makeWorker } from "../src/worker.ts";
 import type { Bitrefill, InvoiceState, SignedQuote, VerifyView } from "../src/types.ts";
@@ -39,7 +39,7 @@ class FakeBitrefill implements Bitrefill {
   }
 }
 
-function setup(opts: { quotesPerIpPer10Min?: number; realBudgetUsdCentsPerDay?: number } = {}) {
+function setup(opts: { quotesPerIpPer10Min?: number; realBudgetUsdCentsPerDay?: number; demo?: DemoWallet } = {}) {
   const db = openDb();
   const wallet = new MockWallet({ reserveZat: 100_000_000 }); // 1 TAZ = $1,000 at the test rate
   const bitrefill = new FakeBitrefill();
@@ -262,5 +262,46 @@ describe("server", () => {
     const v = (await (await s.app.request(`/api/purchase/${body.quote.id}`)).json()) as { serverSeed?: string };
     expect(v.serverSeed).toBeUndefined();
     expect((await s.app.request(`/api/verify/${body.quote.id}`)).status).toBe(409);
+  });
+});
+
+describe("demo wallet (pays real testnet TAZ for visitors without a wallet)", () => {
+  // Stand-in: its "send" pays the till like a real customer would; its memos are what the till sent it.
+  function withDemo() {
+    let s!: ReturnType<typeof setup>;
+    const issued = new Set<string>();
+    const demo: DemoWallet = {
+      newAddress: async () => { const a = `utest1demo${issued.size}aaaaaaaaaaaaaaaaaaaaaaaaaaaa`; issued.add(a); return a; },
+      owns: (a) => issued.has(a),
+      send: async (to, zat) => ({ txid: s.wallet.simulatePayment(to, zat) }),
+      memo: async (txid) => s.wallet.sent.find((x) => x.txid === txid)?.memo ?? null,
+    };
+    s = setup({ demo });
+    const post = (path: string) => s.app.request(path, { method: "POST" });
+    return { s, post };
+  }
+
+  it("pays its own tickets for real, and shows the delivered memo with the code masked", async () => {
+    const { s, post } = withDemo();
+    const { address } = (await (await post("/api/demo/address")).json()) as { address: string };
+    const { body } = await s.quote("classic", address);
+    const paid = await post(`/api/demo/pay/${body.quote.id}`);
+    expect(paid.status).toBe(200);
+    expect((await post(`/api/demo/pay/${body.quote.id}`)).status).toBe(409); // never twice
+    await s.ticks();
+    expect(s.db.get(body.quote.id)!.status).toBe("DELIVERED");
+    const { memo } = (await (await s.app.request(`/api/demo/memo/${body.quote.id}`)).json()) as { memo: string };
+    expect(memo).toContain("Code: CODE••••••••");
+    expect(memo).not.toContain("CODE-123");
+  });
+
+  it("won't pay tickets whose Refund and code would go to someone else", async () => {
+    const { s, post } = withDemo();
+    const other = await s.quote("classic"); // return address not issued by the demo wallet
+    expect((await post(`/api/demo/pay/${other.body.quote.id}`)).status).toBe(403);
+  });
+
+  it("masks codes and PINs line by line", () => {
+    expect(maskCodes("Lucky Buy x\nCode: 7505123456\nPIN: 9876\nYou paid 100%")).toBe("Lucky Buy x\nCode: 7505••••••••\nPIN: 9876••••••••\nYou paid 100%");
   });
 });

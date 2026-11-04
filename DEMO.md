@@ -2,6 +2,14 @@
 
 Everything below is real: Zcash testnet (NU7) payments, the Draw, Bitrefill test gift cards that really deliver, and memos decrypted by real wallets. Nothing is simulated.
 
+## No TAZ? Use the demo wallet (the easiest take)
+
+On https://luckybuy.hrsh.dev:
+1. Click **Use demo wallet**. It fills in an address from a house-run testnet wallet.
+2. Get your ticket, then click **Pay with demo wallet**.
+
+The demo wallet sends a **real testnet payment**, so the wheel, the Bitrefill purchase and the encrypted memo are all real. When the code arrives, the page shows the memo the demo wallet decrypted, with the code masked. Nothing else is needed: no terminal and no wallet of your own.
+
 ## Before you hit record (5 minutes)
 
 1. **Site:** open https://luckybuy.hrsh.dev and hard-refresh it (Cmd+Shift+R).

@@ -85,6 +85,10 @@ npm test
 
 > *"Find me a Flipkart card under a dollar and buy it with Lucky Buy Classic."* Claude calls `lucky_search`, then `lucky_buy`. It pays from its own wallet, waits for the Draw and delivery, and replies with the code from the memo.
 
+**No testnet wallet?** On the live site, click **Use demo wallet**, then **Pay with demo wallet**.
+- A house-run testnet wallet sends a real payment for you and decrypts the delivery memo, which the page shows with the code masked.
+- It only pays tickets whose Refund and code come back to itself.
+
 **Recording or trying it yourself:** see [DEMO.md](DEMO.md).
 - `npm run buyer-address` prints a customer address.
 - `npm run pay -- "<payment link>"` pays a ticket from the customer wallet and prints the memo it decrypts.

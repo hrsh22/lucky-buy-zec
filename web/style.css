@@ -298,3 +298,8 @@ body > main:not(.cabinet) { max-width: 760px; margin: 0 auto; padding: 0 16px 4r
   background: var(--felt); color: var(--cream); font: 400 1rem var(--body);
 }
 .search input:focus { border-color: var(--gold); outline: none; }
+
+/* the demo wallet's decrypted memo */
+.memo { margin-top: 1rem; text-align: left; background: var(--felt); border: 1px dashed var(--gold); border-radius: 12px; padding: .8rem 1rem; }
+.memo-head { margin: 0 0 .4rem; font-weight: 700; color: var(--gold-hot); }
+.memo pre { margin: 0; white-space: pre-wrap; font: .9rem/1.45 ui-monospace, Menlo, monospace; color: var(--cream); }
