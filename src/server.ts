@@ -214,6 +214,11 @@ export function makeApp(d: AppDeps) {
     });
   }
 
+  // Pages and assets revalidate on every load, so a redeploy shows up at once (Cloudflare otherwise caches for 4 h).
+  app.use("/*", async (ctx, next) => {
+    await next();
+    if (!ctx.req.path.startsWith("/api/")) ctx.header("Cache-Control", "no-cache");
+  });
   app.use("/*", serveStatic({ root: "./web" }));
   return app;
 }
