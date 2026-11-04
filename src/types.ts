@@ -132,6 +132,8 @@ export interface Bitrefill {
   buy(productId: string, purchaseId: string): Promise<{ invoiceId: string }>;
   invoice(invoiceId: string): Promise<InvoiceState>;
   balanceUsdCents(): Promise<number>;
+  /** Per API key (by fingerprint): invoices in the last 24 h against the safety limit. */
+  keyUsage?(): Promise<{ fp: string; last24h: number; limit: number }[]>;
 }
 
 export interface Rates {
@@ -190,6 +192,7 @@ export interface ReserveView {
   kellyFraction: number;
   admissionLimitUsdCents: Record<TierId, number | null>; // null = no limit
   quotePublicKey: string;
+  bitrefillKeys?: { fp: string; last24h: number; limit: number }[];
 }
 
 /** GET /api/feed SSE event "purchase": outcome only, never addresses, txids or codes. */

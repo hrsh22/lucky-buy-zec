@@ -1,5 +1,5 @@
 // Bitrefill adapter: real API v2 client + in-memory mock. See types.ts `Bitrefill`.
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Bitrefill, InvoiceState, Product, Redemption } from "./types.ts";
 
 /** Product ids are Bitrefill package ids: `<product_id><&><package value>`. */
@@ -42,8 +42,58 @@ function toProduct(p: any, pkg: any): Product {
 
 type Json = any;
 
+/** Names a key in logs, stored invoice ids and /api/reserve without revealing it. */
+export const keyFingerprint = (key: string) => createHash("sha256").update(key).digest("hex").slice(0, 8);
+
+/**
+ * Several Bitrefill accounts, used in order. Bitrefill caps each account (15 gift cards a day, test products
+ * included, and failing silently once hit), so a key is only used while its invoices in the last 24 h stay
+ * under `limit`, which leaves headroom. Counts come from Bitrefill's own invoice list, so purchases made
+ * elsewhere on the account count too.
+ */
+export class KeyPool {
+  readonly keys: { key: string; fp: string }[];
+  readonly limit: number;
+  private countLast24h: (key: string) => Promise<number>;
+  private counts = new Map<string, { at: number; n: number }>();
+
+  constructor(keys: string[], limit: number, countLast24h: (key: string) => Promise<number>) {
+    this.keys = [...new Set(keys.map((k) => k.trim()).filter(Boolean))].map((key) => ({ key, fp: keyFingerprint(key) }));
+    if (!this.keys.length) throw new Error("no Bitrefill API keys");
+    this.limit = limit;
+    this.countLast24h = countLast24h;
+  }
+
+  private async count(k: { key: string; fp: string }): Promise<number> {
+    const hit = this.counts.get(k.fp);
+    if (hit && Date.now() - hit.at < 60_000) return hit.n;
+    const n = await this.countLast24h(k.key);
+    this.counts.set(k.fp, { at: Date.now(), n });
+    return n;
+  }
+
+  /** The first key with headroom left. Throws a 4xx-style error (a definite rejection, so the buyer is refunded). */
+  async pick(): Promise<{ key: string; fp: string }> {
+    for (const k of this.keys) {
+      const n = await this.count(k).catch(() => Infinity); // can't count it: don't risk it
+      if (n < this.limit) return k;
+    }
+    throw new Error(`bitrefill: HTTP 429 every API key is at its daily safety limit (${this.limit} invoices in 24 h)`);
+  }
+
+  /** Counts a purchase at once, so back-to-back buys don't wait for the next count to see it. */
+  record(fp: string): void {
+    const hit = this.counts.get(fp);
+    if (hit) hit.n++;
+  }
+
+  byFingerprint = (fp: string) => this.keys.find((k) => k.fp === fp);
+
+  usage = () => Promise.all(this.keys.map(async (k) => ({ fp: k.fp, last24h: await this.count(k).catch(() => -1), limit: this.limit })));
+}
+
 export class BitrefillClient implements Bitrefill {
-  private apiKey: string;
+  private pool: KeyPool;
   private baseUrl: string;
   private ids: string[];
   private test: boolean;
@@ -51,17 +101,30 @@ export class BitrefillClient implements Bitrefill {
   // in-process only. Across restarts the worker's stored bitrefillInvoiceId is the guard.
   private bought = new Map<string, string>();
 
-  constructor(apiKey: string, opts: { test?: boolean; baseUrl?: string } = {}) {
-    this.apiKey = apiKey;
+  /** `keys`: one or more API keys (BITREFILL_API_KEYS, comma separated); reads use the first. */
+  constructor(keys: string | string[], opts: { test?: boolean; baseUrl?: string; dailyInvoiceLimit?: number } = {}) {
     this.test = opts.test ?? false;
     this.ids = this.test ? CATALOG.test : CATALOG.main;
     this.baseUrl = opts.baseUrl ?? "https://api.bitrefill.com/v2";
+    this.pool = new KeyPool(typeof keys === "string" ? keys.split(",") : keys, opts.dailyInvoiceLimit ?? 12, (key) =>
+      this.invoicesLast24h(key));
   }
 
-  private async req(path: string, body?: unknown): Promise<Json> {
+  /** Invoices this account created in the last 24 h, newest first from Bitrefill's list (50 is past any limit). */
+  private async invoicesLast24h(key: string): Promise<number> {
+    const list: Json[] = await this.req("/invoices?limit=50", undefined, key);
+    const since = Date.now() - 24 * 3600_000;
+    return list.filter((i) => Date.parse(i.created_time) > since).length;
+  }
+
+  keyUsage() {
+    return this.pool.usage();
+  }
+
+  private async req(path: string, body?: unknown, key = this.pool.keys[0]!.key): Promise<Json> {
     const res = await fetch(this.baseUrl + path, {
       method: body ? "POST" : "GET",
-      headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(15_000),
     });
@@ -137,17 +200,31 @@ export class BitrefillClient implements Bitrefill {
     const known = this.bought.get(purchaseId);
     if (known) return { invoiceId: known };
     await this.product(productId); // validates it exists, is in stock and needs no phone number
+    const k = await this.pool.pick();
     const inv = await this.req("/invoices", {
       products: [{ product_id: productId.split("<&>")[0], package_id: productId, quantity: 1 }],
       payment_method: "balance",
       auto_pay: true,
-    });
-    this.bought.set(purchaseId, inv.id);
-    return { invoiceId: inv.id };
+    }, k.key);
+    this.pool.record(k.fp);
+    const invoiceId = `${k.fp}:${inv.id}`; // an invoice can only be read with the key that created it
+    this.bought.set(purchaseId, invoiceId);
+    return { invoiceId };
   }
 
   async invoice(invoiceId: string): Promise<InvoiceState> {
-    return parseInvoice(await this.req(`/invoices/${encodeURIComponent(invoiceId)}`));
+    const [fp, id] = invoiceId.includes(":") ? invoiceId.split(":") : [null, invoiceId];
+    const k = fp ? this.pool.byFingerprint(fp) : null;
+    if (fp && !k) throw new Error(`invoice ${invoiceId}: its API key (${fp}) is no longer configured`);
+    // ids stored before key fingerprints existed: try each key
+    for (const key of k ? [k] : this.pool.keys) {
+      try {
+        return parseInvoice(await this.req(`/invoices/${encodeURIComponent(id!)}`, undefined, key.key));
+      } catch (e) {
+        if (k || !/HTTP 404/.test((e as Error).message)) throw e;
+      }
+    }
+    throw new Error(`invoice ${invoiceId} not found on any configured key`);
   }
 
   /** Balance is in the account currency (BTC accounts: sats, same unit as invoice prices). Converted via the
@@ -156,12 +233,14 @@ export class BitrefillClient implements Bitrefill {
     return this.memo("balance", () => this.fetchBalanceUsdCents());
   }
 
+  /** Sum over every configured account. */
   private async fetchBalanceUsdCents(): Promise<number> {
-    const [{ balance }, p] = await Promise.all([
-      this.req("/accounts/balance"),
+    const [balances, p] = await Promise.all([
+      Promise.all(this.pool.keys.map((k) => this.req("/accounts/balance", undefined, k.key))),
       this.req("/products/test-gift-card-code?include_test_products=true"),
     ]);
-    return Math.floor((Number(balance) / p.range.price_rate) * 100);
+    const total = balances.reduce((sum, b) => sum + Number(b.balance), 0);
+    return Math.floor((total / p.range.price_rate) * 100);
   }
 }
 
@@ -255,9 +334,12 @@ export class MockBitrefill implements Bitrefill {
 
 export function makeBitrefill(env: NodeJS.ProcessEnv = process.env): Bitrefill {
   if (env.MOCK_BITREFILL === "1") return new MockBitrefill();
-  if (!env.BITREFILL_API_KEY) throw new Error("BITREFILL_API_KEY missing (or set MOCK_BITREFILL=1)");
-  return new BitrefillClient(env.BITREFILL_API_KEY, {
+  // BITREFILL_API_KEYS=key1,key2,… (add a key by appending it; restart picks it up). BITREFILL_API_KEY still works.
+  const keys = env.BITREFILL_API_KEYS || env.BITREFILL_API_KEY;
+  if (!keys) throw new Error("BITREFILL_API_KEYS missing (or set MOCK_BITREFILL=1)");
+  return new BitrefillClient(keys, {
     test: env.BITREFILL_TEST_PRODUCTS === "1",
     baseUrl: env.BITREFILL_BASE_URL,
+    dailyInvoiceLimit: Number(env.BITREFILL_DAILY_INVOICE_LIMIT ?? 12),
   });
 }

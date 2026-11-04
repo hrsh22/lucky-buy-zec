@@ -65,3 +65,31 @@ describe("lastJson (zingo-cli output)", () => {
     expect(() => lastJson("Error: nope\n")).toThrow();
   });
 });
+
+import { KeyPool, keyFingerprint } from "../src/bitrefill.ts";
+describe("KeyPool (several Bitrefill accounts, never at their daily cap)", () => {
+  it("uses keys in order, skipping any at the safety limit, and counts each buy at once", async () => {
+    const counts: Record<string, number> = { a: 12, b: 10, c: 0 };
+    const pool = new KeyPool(["a", "b", " c ", "a"], 12, async (k) => counts[k]!);
+    expect(pool.keys.map((k) => k.key)).toEqual(["a", "b", "c"]); // trimmed, de-duplicated
+    let k = await pool.pick();
+    expect(k.key).toBe("b");
+    pool.record(k.fp);
+    k = await pool.pick();
+    expect(k.key).toBe("b"); // 11 < 12
+    pool.record(k.fp);
+    expect((await pool.pick()).key).toBe("c"); // b reached 12: move on
+  });
+
+  it("refuses with a definite 4xx when every key is at the limit, or can't be counted", async () => {
+    const pool = new KeyPool(["a", "b"], 12, async (k) => (k === "a" ? 15 : Promise.reject(new Error("down"))));
+    await expect(pool.pick()).rejects.toThrow(/HTTP 429/);
+  });
+
+  it("names keys by fingerprint, never by value", async () => {
+    const pool = new KeyPool(["secret-key-1"], 12, async () => 3);
+    const [u] = await pool.usage();
+    expect(u).toEqual({ fp: keyFingerprint("secret-key-1"), last24h: 3, limit: 12 });
+    expect(JSON.stringify(u)).not.toContain("secret");
+  });
+});

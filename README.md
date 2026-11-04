@@ -70,7 +70,7 @@ npm test
    Fund them with TAZ from [Fauzec](https://fauzec.com/), the [Valar faucet](https://faucet.testnet.valargroup.dev/) or a mentor.
 3. In `.env`, set:
    - `MOCK_WALLET=0` and `ZINGO_BIN`;
-   - `MOCK_BITREFILL=0` and `BITREFILL_API_KEY`;
+   - `MOCK_BITREFILL=0` and `BITREFILL_API_KEYS` (one or more keys, comma separated);
    - `AGENT_DIR` and `AGENT_ZINGO_BIN`.
 
    Then run `npm start`, and `npm run tunnel` if you want a public URL.
@@ -92,6 +92,7 @@ npm test
 | Per purchase | `AGENT_MAX_ZEC_PER_PURCHASE=0.03` TAZ | Nothing is paid. The agent returns a ZIP-321 link, and **the human approves by paying it from their own wallet** |
 | Per rolling 24 h | `AGENT_MAX_ZEC_PER_DAY=0.1` TAZ, kept in a ledger file so it survives restarts | Same |
 | Per request | optional `maxZec` budget from the user's prompt | Same |
+| House: Bitrefill accounts | `BITREFILL_API_KEYS=key1,key2,…` with `BITREFILL_DAILY_INVOICE_LIMIT=12` (Bitrefill caps an account at 15 gift cards a day). To add a key, append it and restart; there's no code change. | The next key is used. When all are full, purchases are refused before any invoice is created and the buyer is refunded |
 | House: real gift cards per 24 h | `BITREFILL_REAL_BUDGET_USD_CENTS_PER_DAY=1500` on testnet. Testnet buyers pay with free TAZ while the house pays Bitrefill real money, so this stops a public URL being drained | Quotes are refused before anyone pays |
 | Hard ceiling | whatever sits in the agent wallet: fund it like a prepaid card | — |
 
@@ -178,6 +179,7 @@ Explorer links for every transaction are in [SUBMISSION.md](SUBMISSION.md).
 
 | What | Zcash txids | Bitrefill invoice |
 |---|---|---|
+| **Agent `lucky_buy`: paid over Nym, delivered, code decrypted by the agent** | pay `c20d7971…`, deliver `121d1522…` | `49d03e20-4ce4-4db8-bddc-3fa1e3b8f9af` |
 | Classic: delivered, code in memo | pay `f43e585e…`, deliver `ba81695e…` | `07fa9491-58e7-44f8-9c3d-f2efa0b6135c` |
 | Moonshot: delivered with a Refund | pay `f3894662…`, deliver `317961f8…` | `dfb27f52-50fc-4182-8f53-7cd8b42a3b1f` |
 | Standard: delivered | pay `04c74db0…`, deliver `5d8330bb…` | `c40f094b-05c3-4118-b465-8150b18ee505` |

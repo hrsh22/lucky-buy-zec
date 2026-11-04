@@ -8,3 +8,5 @@ wallets/
 __pycache__/
 .DS_Store
 logs/
+# throwaway local test drivers
+*.tmp.mjs

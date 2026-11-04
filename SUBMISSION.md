@@ -68,11 +68,24 @@ Paste-ready answers for [Stadium](https://stadium.joinwebzero.com/programs/free-
 
 These are Bitrefill test products; see the note below.
 
-**Agent-initiated purchase (MCP `lucky_buy`), on real testnet:**
+**Agent-initiated purchase that delivered (MCP `lucky_buy`), on real testnet:** Bitrefill invoice **`49d03e20-4ce4-4db8-bddc-3fa1e3b8f9af`**.
+1. Claude's agent paid 0.011 TAZ from its own shielded wallet, broadcast over the Nym mixnet: [`c20d7971…`](https://testnet.zcashexplorer.app/transactions/c20d79716b7e9e247b2dacf73edc63388ded9ce43cd5dde16025cecec6bfe73a).
+2. The Draw landed on 100% of R.
+3. Bitrefill delivered the card.
+4. The till sent the Refund and the code in an encrypted memo: [`121d1522…`](https://testnet.zcashexplorer.app/transactions/121d15222ad65f4b2bcf44ce9e795d159c455a874f63fa829418bd677faf8704).
+5. The agent decrypted the memo with its own wallet and returned the code in chat.
+
+The whole run took 105 s, and verify passes all four checks.
+
+**Earlier agent run, before we had a second key:** 
 - **Payment:** Claude's agent paid 0.011 TAZ from its own shielded wallet, broadcast over the Nym mixnet: txid [`3e57d821…`](https://testnet.zcashexplorer.app/transactions/3e57d821e572d7a4000b0186e4c0fd6c39d1ab21532c7ec441b87d39619ad8f9).
 - **Purchase:** the server drew and bought through Bitrefill (invoice `53924980-dae9-44d6-b098-2d634b8dc7b2`).
 - **Outcome:** Bitrefill rejected the invoice because of the account's daily cap, so the agent wallet got its full payment back ([`41344adb…`](https://testnet.zcashexplorer.app/transactions/41344adb49f9315a8c0710da304c62fba4f58e122b6d9d847ad1565fea807dcc)).
 - **Guardrail:** in the same session, a 0.0375 TAZ Moonshot over the 0.03 cap was refused and an approval link was returned.
+
+**Bitrefill quota guard:** the house spreads purchases over several Bitrefill accounts (`BITREFILL_API_KEYS`).
+- Each key is used only while its invoices in the last 24 h, counted from Bitrefill's own invoice list, stay under 12 (the cap is 15), so no account ever hits its cap.
+- When every key is at its limit, quotes still work, but purchases are refused before any invoice is created and the buyer is refunded in full.
 
 **Guardrails:**
 - **Per purchase:** at most 0.03 TAZ (`AGENT_MAX_ZEC_PER_PURCHASE`).

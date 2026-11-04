@@ -5,11 +5,12 @@ import { randomUUID } from "node:crypto";
 import { BitrefillClient } from "../src/bitrefill.ts";
 
 for (const f of [".env", "../.env"]) if (existsSync(f)) process.loadEnvFile(f);
-const key = process.env.BITREFILL_API_KEY;
-if (!key) throw new Error("BITREFILL_API_KEY missing");
+const key = process.env.BITREFILL_API_KEYS || process.env.BITREFILL_API_KEY;
+if (!key) throw new Error("BITREFILL_API_KEYS missing");
 const test = process.env.BITREFILL_TEST_PRODUCTS !== "0";
 
 const client = new BitrefillClient(key, { test, baseUrl: process.env.BITREFILL_BASE_URL });
+console.log("keys (24 h invoices / limit):", await client.keyUsage());
 console.log("balance (USD cents):", await client.balanceUsdCents());
 const products = await client.products();
 console.table(products.map(({ faceValue, ...p }) => ({ ...p, face: `${faceValue.amount} ${faceValue.currency}` })));

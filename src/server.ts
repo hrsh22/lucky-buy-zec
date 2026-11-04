@@ -204,6 +204,7 @@ export function makeApp(d: AppDeps) {
       bitrefillBalanceUsdCents: await bitrefill.balanceUsdCents().catch(() => -1),
       rateUsdCentsPerZec: rate, rateSource: network === "mainnet" ? "live" : "testnet_fixed",
       openWorstLossUsdCents: open, kellyFraction: c, admissionLimitUsdCents: limits, quotePublicKey: key.publicKeyHex,
+      bitrefillKeys: await bitrefill.keyUsage?.().catch(() => undefined),
     };
     return ctx.json(view);
   });
